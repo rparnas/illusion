@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 
@@ -17,7 +18,7 @@ namespace Illusion
 {
   public partial class MainForm : Form
   {
-    List<Block> Blocks;
+    List<Block> Blocks = new List<Block>();
 
     [STAThread]
     public static void Main()
@@ -43,7 +44,7 @@ namespace Illusion
       if (file == null)
         return;
 
-      Blocks = new List<Block>();
+      Blocks.Clear();
       foreach (DataRow row in file.Rows)
       {
         var dateStr = row["Date"].ToString().Trim();
@@ -60,6 +61,28 @@ namespace Illusion
           Activity = row["Activity"].ToString().Trim()
         });
       }
+      Setup();
+    }
+
+    void Setup()
+    {
+      var projects = Blocks.Select(b => b.Project).Distinct().ToList();
+      projects.Sort();
+      iclb_Projects.Label = "Projects";
+      iclb_Projects.SetItems(projects);
+      var checkedProjects = iclb_Projects.CheckedItems;
+
+      var features = Blocks.Where(b => checkedProjects.Contains(b.Project)).Select(b => b.Feature).Distinct().ToList();
+      features.Sort();
+      iclb_Features.Label = "Features";
+      iclb_Features.SetItems(features);
+      var checkedFeatures = iclb_Features.CheckedItems;
+
+      var activities = Blocks.Where(b => checkedProjects.Contains(b.Project) && checkedFeatures.Contains(b.Feature)).Select(b => b.Activity).Distinct().ToList();
+      activities.Sort();
+      iclb_Activities.Label = "Activities";
+      iclb_Activities.SetItems(activities);
+      var checkedActivites = iclb_Activities.CheckedItems;
     }
   }
 
@@ -70,6 +93,8 @@ namespace Illusion
     public string Project;
     public string Feature;
     public string Activity;
+
+    public double DevHours { get { return (Stop - Start).TotalHours; } }
   }
 
   class Loader
