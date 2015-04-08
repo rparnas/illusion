@@ -52,6 +52,8 @@ namespace Illusion
         var stopStr = row["Stop"].ToString().Trim();
         var start = DateTime.ParseExact(dateStr + " " + startStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
         var stop = DateTime.ParseExact(dateStr + " " + stopStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
+        if (stop < start)
+          stop = stop.AddDays(1);
 
         Blocks.Add(new Block
         {
