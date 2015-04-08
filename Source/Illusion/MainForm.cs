@@ -52,6 +52,7 @@ namespace Illusion
         var stopStr = row["Stop"].ToString().Trim();
         var start = DateTime.ParseExact(dateStr + " " + startStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
         var stop = DateTime.ParseExact(dateStr + " " + stopStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
+
         Blocks.Add(new Block
         {
           Start = start,
@@ -83,6 +84,28 @@ namespace Illusion
       iclb_Activities.Label = "Activities";
       iclb_Activities.SetItems(activities);
       var checkedActivites = iclb_Activities.CheckedItems;
+
+
+      var selectedBlocks = Blocks.Where(b => checkedProjects.Contains(b.Project) && checkedFeatures.Contains(b.Feature) && checkedActivites.Contains(b.Activity)).ToList();
+      var dt = new DataTable();
+      dt.Columns.Add("Item");
+      dt.Columns.Add("Value");
+      Action<string, string> addItem = (item, value) =>
+      {
+        var row = dt.NewRow();
+        row["Item"] = item;
+        row["Value"] = value;
+        dt.Rows.Add(row);
+      };
+
+      if (selectedBlocks.Any())
+      {
+        addItem("Start", selectedBlocks.First().Start.ToString("M/d/yy"));
+        addItem("Stop", selectedBlocks.Last().Stop.ToString("M/d/yy"));
+        addItem("Dev Hours", selectedBlocks.Sum(b => b.DevHours).ToString());
+      }
+
+      dgv.DataSource = dt;
     }
   }
 
