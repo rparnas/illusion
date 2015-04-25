@@ -63,12 +63,16 @@ namespace Illusion
           Activity = row["Activity"].ToString().Trim()
         });
       }
+
+      dtp_Start.Value = AllBlocks.Min(b => b.Start).Date;
+      dtp_Stop.Value = AllBlocks.Max(b => b.Stop).Date;
+
       Setup();
     }
 
     void Setup()
     {
-      var blocks = AllBlocks;
+      var blocks = AllBlocks.Where(b => b.Start.Date >= dtp_Start.Value && b.Stop.Date <= dtp_Stop.Value).ToList();
       blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Project,  iclb_Projects  );
       blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Feature,  iclb_Features  );
       blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Activity, iclb_Activities);
@@ -86,8 +90,8 @@ namespace Illusion
 
       if (blocks.Any())
       {
-        addItem("Start",     blocks.First().Start.ToString("M/d/yy"));
-        addItem("Stop",      blocks.Last().Stop.ToString("M/d/yy"));
+        addItem("Start",     blocks.Min(b => b.Start).ToString("M/d/yy"));
+        addItem("Stop",      blocks.Max(b => b.Stop).ToString("M/d/yy"));
         addItem("Dev Hours", blocks.Sum(b => b.DevHours).ToString());
       }
 
@@ -101,6 +105,10 @@ namespace Illusion
       iclb.SetItems(items);
       return blocks.Where(b => iclb.CheckedItems.Contains(getCategory(b))).ToList();
     }
+
+    void dtp_Start_ValueChanged(object sender, EventArgs e) { Setup(); }
+
+    void dtp_Stop_ValueChanged(object sender, EventArgs e) { Setup(); }
   }
 
   class Block

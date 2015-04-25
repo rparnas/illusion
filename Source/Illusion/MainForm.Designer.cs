@@ -33,6 +33,10 @@
       this.iclb_Activities = new Illusion.IllusionCheckedListBox();
       this.iclb_Features = new Illusion.IllusionCheckedListBox();
       this.iclb_Projects = new Illusion.IllusionCheckedListBox();
+      this.dtp_Start = new System.Windows.Forms.DateTimePicker();
+      this.dtp_Stop = new System.Windows.Forms.DateTimePicker();
+      this.lbl_Start = new System.Windows.Forms.Label();
+      this.lbl_Stop = new System.Windows.Forms.Label();
       ((System.ComponentModel.ISupportInitialize)(this.dgv)).BeginInit();
       this.SuspendLayout();
       // 
@@ -86,11 +90,51 @@
       this.iclb_Projects.TabIndex = 1;
       this.iclb_Projects.ItemCheckChanged += new System.Action(this.Setup);
       // 
+      // dtp_Start
+      // 
+      this.dtp_Start.Format = System.Windows.Forms.DateTimePickerFormat.Short;
+      this.dtp_Start.Location = new System.Drawing.Point(626, 437);
+      this.dtp_Start.Name = "dtp_Start";
+      this.dtp_Start.Size = new System.Drawing.Size(100, 20);
+      this.dtp_Start.TabIndex = 5;
+      this.dtp_Start.ValueChanged += new System.EventHandler(this.dtp_Start_ValueChanged);
+      // 
+      // dtp_Stop
+      // 
+      this.dtp_Stop.Format = System.Windows.Forms.DateTimePickerFormat.Short;
+      this.dtp_Stop.Location = new System.Drawing.Point(777, 437);
+      this.dtp_Stop.Name = "dtp_Stop";
+      this.dtp_Stop.Size = new System.Drawing.Size(100, 20);
+      this.dtp_Stop.TabIndex = 6;
+      this.dtp_Stop.ValueChanged += new System.EventHandler(this.dtp_Stop_ValueChanged);
+      // 
+      // lbl_Start
+      // 
+      this.lbl_Start.AutoSize = true;
+      this.lbl_Start.Location = new System.Drawing.Point(591, 439);
+      this.lbl_Start.Name = "lbl_Start";
+      this.lbl_Start.Size = new System.Drawing.Size(29, 13);
+      this.lbl_Start.TabIndex = 7;
+      this.lbl_Start.Text = "Start";
+      // 
+      // lbl_Stop
+      // 
+      this.lbl_Stop.AutoSize = true;
+      this.lbl_Stop.Location = new System.Drawing.Point(742, 439);
+      this.lbl_Stop.Name = "lbl_Stop";
+      this.lbl_Stop.Size = new System.Drawing.Size(29, 13);
+      this.lbl_Stop.TabIndex = 8;
+      this.lbl_Stop.Text = "Stop";
+      // 
       // MainForm
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.ClientSize = new System.Drawing.Size(946, 469);
+      this.Controls.Add(this.lbl_Stop);
+      this.Controls.Add(this.lbl_Start);
+      this.Controls.Add(this.dtp_Stop);
+      this.Controls.Add(this.dtp_Start);
       this.Controls.Add(this.dgv);
       this.Controls.Add(this.iclb_Activities);
       this.Controls.Add(this.iclb_Features);
@@ -100,6 +144,7 @@
       this.Text = "Form1";
       ((System.ComponentModel.ISupportInitialize)(this.dgv)).EndInit();
       this.ResumeLayout(false);
+      this.PerformLayout();
 
     }
 
@@ -110,6 +155,10 @@
     private IllusionCheckedListBox iclb_Features;
     private IllusionCheckedListBox iclb_Activities;
     private System.Windows.Forms.DataGridView dgv;
+    private System.Windows.Forms.DateTimePicker dtp_Start;
+    private System.Windows.Forms.DateTimePicker dtp_Stop;
+    private System.Windows.Forms.Label lbl_Start;
+    private System.Windows.Forms.Label lbl_Stop;
   }
 }
 
