@@ -61,7 +61,7 @@
       // 
       // iclb_Activities
       // 
-      this.iclb_Activities.Label = "Field";
+      this.iclb_Activities.Label = "Activities";
       this.iclb_Activities.Location = new System.Drawing.Point(324, 12);
       this.iclb_Activities.Name = "iclb_Activities";
       this.iclb_Activities.Size = new System.Drawing.Size(150, 445);
@@ -70,7 +70,7 @@
       // 
       // iclb_Features
       // 
-      this.iclb_Features.Label = "Field";
+      this.iclb_Features.Label = "Features";
       this.iclb_Features.Location = new System.Drawing.Point(168, 12);
       this.iclb_Features.Name = "iclb_Features";
       this.iclb_Features.Size = new System.Drawing.Size(150, 445);
@@ -79,7 +79,7 @@
       // 
       // iclb_Projects
       // 
-      this.iclb_Projects.Label = "Field";
+      this.iclb_Projects.Label = "Projects";
       this.iclb_Projects.Location = new System.Drawing.Point(12, 12);
       this.iclb_Projects.Name = "iclb_Projects";
       this.iclb_Projects.Size = new System.Drawing.Size(150, 445);

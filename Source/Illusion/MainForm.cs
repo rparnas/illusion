@@ -18,7 +18,7 @@ namespace Illusion
 {
   public partial class MainForm : Form
   {
-    List<Block> Blocks = new List<Block>();
+    List<Block> AllBlocks = new List<Block>();
 
     [STAThread]
     public static void Main()
@@ -44,7 +44,7 @@ namespace Illusion
       if (file == null)
         return;
 
-      Blocks.Clear();
+      AllBlocks.Clear();
       foreach (DataRow row in file.Rows)
       {
         var dateStr = row["Date"].ToString().Trim();
@@ -54,8 +54,7 @@ namespace Illusion
         var stop = DateTime.ParseExact(dateStr + " " + stopStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
         if (stop < start)
           stop = stop.AddDays(1);
-
-        Blocks.Add(new Block
+        AllBlocks.Add(new Block
         {
           Start = start,
           Stop = stop,
@@ -69,26 +68,11 @@ namespace Illusion
 
     void Setup()
     {
-      var projects = Blocks.Select(b => b.Project).Distinct().ToList();
-      projects.Sort();
-      iclb_Projects.Label = "Projects";
-      iclb_Projects.SetItems(projects);
-      var checkedProjects = iclb_Projects.CheckedItems;
+      var blocks = AllBlocks;
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Project,  iclb_Projects  );
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Feature,  iclb_Features  );
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Activity, iclb_Activities);
 
-      var features = Blocks.Where(b => checkedProjects.Contains(b.Project)).Select(b => b.Feature).Distinct().ToList();
-      features.Sort();
-      iclb_Features.Label = "Features";
-      iclb_Features.SetItems(features);
-      var checkedFeatures = iclb_Features.CheckedItems;
-
-      var activities = Blocks.Where(b => checkedProjects.Contains(b.Project) && checkedFeatures.Contains(b.Feature)).Select(b => b.Activity).Distinct().ToList();
-      activities.Sort();
-      iclb_Activities.Label = "Activities";
-      iclb_Activities.SetItems(activities);
-      var checkedActivites = iclb_Activities.CheckedItems;
-
-
-      var selectedBlocks = Blocks.Where(b => checkedProjects.Contains(b.Project) && checkedFeatures.Contains(b.Feature) && checkedActivites.Contains(b.Activity)).ToList();
       var dt = new DataTable();
       dt.Columns.Add("Item");
       dt.Columns.Add("Value");
@@ -100,14 +84,22 @@ namespace Illusion
         dt.Rows.Add(row);
       };
 
-      if (selectedBlocks.Any())
+      if (blocks.Any())
       {
-        addItem("Start", selectedBlocks.First().Start.ToString("M/d/yy"));
-        addItem("Stop", selectedBlocks.Last().Stop.ToString("M/d/yy"));
-        addItem("Dev Hours", selectedBlocks.Sum(b => b.DevHours).ToString());
+        addItem("Start",     blocks.First().Start.ToString("M/d/yy"));
+        addItem("Stop",      blocks.Last().Stop.ToString("M/d/yy"));
+        addItem("Dev Hours", blocks.Sum(b => b.DevHours).ToString());
       }
 
       dgv.DataSource = dt;
+    }
+
+    List<Block> UpdateListBoxAndFilterBlocks(List<Block> blocks, Func<Block, string> getCategory, IllusionCheckedListBox iclb)
+    {
+      var items = blocks.Select(b => getCategory(b)).Distinct().ToList();
+      items.Sort();
+      iclb.SetItems(items);
+      return blocks.Where(b => iclb.CheckedItems.Contains(getCategory(b))).ToList();
     }
   }
 
