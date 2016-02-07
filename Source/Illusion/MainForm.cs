@@ -1,4 +1,4 @@
-﻿using OfficeOpenXml;
+using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -60,7 +60,8 @@ namespace Illusion
           Stop = stop,
           Project = row["Project"].ToString().Trim(),
           Feature = row["Feature"].ToString().Trim(),
-          Activity = row["Activity"].ToString().Trim()
+          Activity = row["Activity"].ToString().Trim(),
+          People = row["People"].ToString().Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).ToList()
         });
       }
 
@@ -73,26 +74,34 @@ namespace Illusion
     void Setup()
     {
       var blocks = AllBlocks.Where(b => b.Start.Date >= dtp_Start.Value && b.Stop.Date <= dtp_Stop.Value).ToList();
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Project,  iclb_Projects  );
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Feature,  iclb_Features  );
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Project, iclb_Projects);
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Feature, iclb_Features);
       blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Activity, iclb_Activities);
 
       var dt = new DataTable();
       dt.Columns.Add("Item");
       dt.Columns.Add("Value");
-      Action<string, string> addItem = (item, value) =>
+      Action<string, object> addItem = (item, value) =>
       {
         var row = dt.NewRow();
         row["Item"] = item;
-        row["Value"] = value;
+        row["Value"] = value.ToString();
         dt.Rows.Add(row);
       };
 
       if (blocks.Any())
       {
-        addItem("Start",     blocks.Min(b => b.Start).ToString("M/d/yy"));
-        addItem("Stop",      blocks.Max(b => b.Stop).ToString("M/d/yy"));
-        addItem("Dev Hours", blocks.Sum(b => b.DevHours).ToString());
+        var start = blocks.Min(b => b.Start);
+        var stop = blocks.Max(b => b.Stop);
+        var hours = blocks.Sum(b => b.Hours);
+        var devHours = blocks.Sum(b => b.DevHours);
+        var hourRatio = devHours / hours;
+
+        addItem("Start", start.ToString("M/d/yy"));
+        addItem("Stop", stop.ToString("M/d/yy"));
+        addItem("Hours", hours);
+        addItem("Dev Hours", devHours);
+        addItem("Dev Hours / Hours", hourRatio);
       }
 
       dgv.DataSource = dt;
@@ -118,8 +127,10 @@ namespace Illusion
     public string Project;
     public string Feature;
     public string Activity;
+    public List<string> People;
 
-    public double DevHours { get { return (Stop - Start).TotalHours; } }
+    public double Hours { get { return (Stop - Start).TotalHours; } }
+    public double DevHours { get { return Hours * (People.Count); } }
   }
 
   class Loader
