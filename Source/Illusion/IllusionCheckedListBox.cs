@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -34,6 +34,19 @@ namespace Illusion
       }
     }
 
+    public List<string> SelectedItems
+    {
+      get
+      {
+        var ret = new List<string>();
+        foreach (var item in clb.SelectedItems)
+        {
+          ret.Add(item.ToString());
+        }
+        return ret;
+      }
+    }
+
     public IllusionCheckedListBox()
     {
       InitializeComponent();
@@ -48,10 +61,20 @@ namespace Illusion
     public void SetItems(List<string> items)
     {
       IgnoreItemCheck = true;
+
       var previouslyChecked = CheckedItems;
+      var previouslySelected = SelectedItems;
+
       clb.Items.Clear();
       foreach (var item in items)
+      {
         clb.Items.Add(item, previouslyChecked.Contains(item));
+        if (previouslySelected.Contains(item))
+        {
+          clb.SelectedItems.Add(item);
+        }
+      }
+
       IgnoreItemCheck = false;
     }
 
