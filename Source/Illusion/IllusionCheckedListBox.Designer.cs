@@ -1,4 +1,4 @@
-﻿namespace Illusion
+namespace Illusion
 {
   partial class IllusionCheckedListBox
   {
@@ -28,7 +28,7 @@
     /// </summary>
     private void InitializeComponent()
     {
-      this.clb = new System.Windows.Forms.CheckedListBox();
+      this.hclb = new HighlightableCheckedListBox();
       this.btn_All = new System.Windows.Forms.Button();
       this.btn_None = new System.Windows.Forms.Button();
       this.lbl_Field = new System.Windows.Forms.Label();
@@ -36,15 +36,15 @@
       // 
       // clb
       // 
-      this.clb.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+      this.hclb.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-      this.clb.FormattingEnabled = true;
-      this.clb.Location = new System.Drawing.Point(0, 19);
-      this.clb.Name = "clb";
-      this.clb.Size = new System.Drawing.Size(128, 169);
-      this.clb.TabIndex = 0;
-      this.clb.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.clb_ItemCheck);
+      this.hclb.FormattingEnabled = true;
+      this.hclb.Location = new System.Drawing.Point(0, 19);
+      this.hclb.Name = "clb";
+      this.hclb.Size = new System.Drawing.Size(128, 169);
+      this.hclb.TabIndex = 0;
+      this.hclb.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.hclb_ItemCheck);
       // 
       // btn_All
       // 
@@ -84,7 +84,7 @@
       this.Controls.Add(this.lbl_Field);
       this.Controls.Add(this.btn_None);
       this.Controls.Add(this.btn_All);
-      this.Controls.Add(this.clb);
+      this.Controls.Add(this.hclb);
       this.Name = "IllusionCheckedListBox";
       this.Size = new System.Drawing.Size(128, 212);
       this.ResumeLayout(false);
@@ -94,7 +94,7 @@
 
     #endregion
 
-    private System.Windows.Forms.CheckedListBox clb;
+    private HighlightableCheckedListBox hclb;
     private System.Windows.Forms.Button btn_All;
     private System.Windows.Forms.Button btn_None;
     private System.Windows.Forms.Label lbl_Field;

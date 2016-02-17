@@ -39,10 +39,10 @@ namespace Illusion
       this.tpVisualization = new System.Windows.Forms.TabPage();
       this.pnl_Visualization = new System.Windows.Forms.Panel();
       this.pb_Visualization = new System.Windows.Forms.PictureBox();
+      this.lbl_Visualization = new System.Windows.Forms.Label();
       this.iclb_Activities = new Illusion.IllusionCheckedListBox();
       this.iclb_Features = new Illusion.IllusionCheckedListBox();
       this.iclb_Projects = new Illusion.IllusionCheckedListBox();
-      this.lbl_Visualization = new System.Windows.Forms.Label();
       ((System.ComponentModel.ISupportInitialize)(this.dgv_Stats)).BeginInit();
       this.tc.SuspendLayout();
       this.tpStats.SuspendLayout();
@@ -176,6 +176,15 @@ namespace Illusion
       this.pb_Visualization.MouseLeave += new System.EventHandler(this.pb_Visualization_MouseLeave);
       this.pb_Visualization.MouseMove += new System.Windows.Forms.MouseEventHandler(this.pb_Visualization_MouseMove);
       // 
+      // lbl_Visualization
+      // 
+      this.lbl_Visualization.AutoSize = true;
+      this.lbl_Visualization.Location = new System.Drawing.Point(6, 633);
+      this.lbl_Visualization.Name = "lbl_Visualization";
+      this.lbl_Visualization.Size = new System.Drawing.Size(22, 13);
+      this.lbl_Visualization.TabIndex = 6;
+      this.lbl_Visualization.Text = ". . .";
+      // 
       // iclb_Activities
       // 
       this.iclb_Activities.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
@@ -208,15 +217,6 @@ namespace Illusion
       this.iclb_Projects.Size = new System.Drawing.Size(150, 705);
       this.iclb_Projects.TabIndex = 1;
       this.iclb_Projects.ItemCheckChanged += new System.Action(this.Setup);
-      // 
-      // lbl_Visualization
-      // 
-      this.lbl_Visualization.AutoSize = true;
-      this.lbl_Visualization.Location = new System.Drawing.Point(6, 633);
-      this.lbl_Visualization.Name = "lbl_Visualization";
-      this.lbl_Visualization.Size = new System.Drawing.Size(22, 13);
-      this.lbl_Visualization.TabIndex = 6;
-      this.lbl_Visualization.Text = ". . .";
       // 
       // MainForm
       // 

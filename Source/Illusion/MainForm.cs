@@ -19,9 +19,13 @@ namespace Illusion
 {
   public partial class MainForm : Form
   {
+    public static List<Highlight> Highlights;
+
     [STAThread]
     public static void Main()
     {
+      Highlights = new[] { Color.Red, Color.Orange, Color.Yellow, Color.Green, Color.Blue, Color.Indigo, Color.Violet }.Select(c => new Highlight(c)).ToList();
+
       Application.EnableVisualStyles();
       Application.SetCompatibleTextRenderingDefault(false);
       Application.Run(new MainForm());
@@ -30,15 +34,11 @@ namespace Illusion
     const int VisualizationScaleFactor = 4;
     List<Block> AllBlocks;
     bool IgnoreSetup;
-    DateTime VisualizationStartDate;
-    DateTime VisualizationStopDate;
 
     public MainForm()
     {
       AllBlocks = new List<Block>();
       IgnoreSetup = false;
-      VisualizationStartDate = DateTime.Now;
-      VisualizationStopDate = DateTime.Now;
 
       InitializeComponent();
     }
@@ -88,9 +88,7 @@ namespace Illusion
       dgv_Stats.DataSource = dt;
 
       // Generate Visualization
-      VisualizationStartDate = blocks.First().Start.Date;
-      VisualizationStopDate = blocks.Last().Stop.Date.AddDays(1);
-      var bmp = new Bitmap(24 * 4, (int)Math.Ceiling((VisualizationStopDate - VisualizationStartDate).TotalDays));
+      var bmp = new Bitmap(24 * 4, (int)Math.Ceiling((dtp_Stop.Value - dtp_Start.Value).TotalDays));
 
       using (var g = Graphics.FromImage(bmp))
       {
@@ -98,24 +96,30 @@ namespace Illusion
 
         foreach (var block in blocks)
         {
-          int yStart = (block.Start - VisualizationStartDate).Days;
-          int yStop = (block.Stop - VisualizationStartDate).Days;
+          int yStart = (block.Start - dtp_Start.Value).Days;
+          int yStop = (block.Stop - dtp_Start.Value).Days;
 
           for (int y = yStart; y <= yStop; y++)
           {
             int xStart = y == yStart ? (block.Start.Hour * 4) + (block.Start.Minute / 15) : 0;
             int xStop = y == yStop ? (block.Stop.Hour * 4) + (block.Stop.Minute / 15) : bmp.Width - 1;
 
-            g.FillRectangle(Brushes.White, new Rectangle(xStart, y, (xStop - xStart) + 1, 1));
+            var brush = iclb_Projects.GetHighlight(block.Project) ??
+                        iclb_Features.GetHighlight(block.Feature) ??
+                        iclb_Activities.GetHighlight(block.Activity) ??
+                        Brushes.White;
+
+            g.FillRectangle(brush, new Rectangle(xStart, y, (xStop - xStart) + 1, 1));
           }
         }
       }
 
       // Display Visualization
+      pnl_Visualization.VerticalScroll.Value = 0;
+      pnl_Visualization.HorizontalScroll.Value = 0;
       var zoomed = new Bitmap(bmp, new Size(bmp.Width * VisualizationScaleFactor, bmp.Height * VisualizationScaleFactor));
       pb_Visualization.Size = zoomed.Size;
-      pb_Visualization.Left = (tpVisualization.Width - pb_Visualization.Width) / 2;
-      pb_Visualization.Top = 6;
+      pb_Visualization.Location = new Point((tpVisualization.Width - pb_Visualization.Width) / 2, 3);
       pb_Visualization.Image = zoomed;
     }
 
@@ -192,13 +196,27 @@ namespace Illusion
       var pos = pb_Visualization.PointToClient(Cursor.Position);
       var x = pos.X / VisualizationScaleFactor;
       var y = pos.Y / VisualizationScaleFactor;
-      var time = VisualizationStartDate.AddMinutes(x * 15).AddDays(y);
+      var time = dtp_Start.Value.AddMinutes(x * 15).AddDays(y);
 
       lbl_Visualization.Text = time.ToString("M/d/yy h:mmtt").Replace("AM", "a").Replace("PM", "p");
     }
   }
 
-  class Block
+  public class Highlight
+  {
+    public readonly Brush Brush;
+    public readonly Color Color;
+    public readonly string Name;
+
+    public Highlight(Color color)
+    {
+      Brush = new SolidBrush(color);
+      Color = color;
+      Name = color.Name;
+    }
+  }
+
+  public class Block
   {
     public DateTime Start;
     public DateTime Stop;
@@ -211,7 +229,7 @@ namespace Illusion
     public double DevHours { get { return Hours * (People.Count); } }
   }
 
-  class Loader
+  public class Loader
   {
     public static DataTable GetXLSX(string path, string sheetName)
     {
