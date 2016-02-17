@@ -24,7 +24,15 @@ namespace Illusion
     [STAThread]
     public static void Main()
     {
-      Highlights = new[] { Color.Red, Color.Orange, Color.Yellow, Color.Green, Color.Blue, Color.Indigo, Color.Violet }.Select(c => new Highlight(c)).ToList();
+      Highlights = new List<Highlight>
+      {
+        new Highlight("Red",    196, 2, 51),
+        new Highlight("Ornage", 255, 120, 19),
+        new Highlight("Yellow", 255, 211, 0),
+        new Highlight("Green",  0, 163, 104),
+        new Highlight("Blue",   0, 136, 191),
+        new Highlight("Violet", 131, 63, 135)
+      };
 
       Application.EnableVisualStyles();
       Application.SetCompatibleTextRenderingDefault(false);
@@ -51,9 +59,11 @@ namespace Illusion
       }
 
       var blocks = AllBlocks.Where(b => b.Start.Date >= dtp_Start.Value && b.Stop.Date <= dtp_Stop.Value).ToList();
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Project, iclb_Projects);
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Feature, iclb_Features);
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Activity, iclb_Activities);
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => new [] { b.Company  }, iclb_Companies);
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => new [] { b.Project  }, iclb_Projects);
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => new [] { b.Feature  }, iclb_Features);
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => new [] { b.Activity }, iclb_Activities);
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.People,              iclb_People); 
 
       if (!blocks.Any())
       {
@@ -104,10 +114,12 @@ namespace Illusion
             int xStart = y == yStart ? (block.Start.Hour * 4) + (block.Start.Minute / 15) : 0;
             int xStop = y == yStop ? (block.Stop.Hour * 4) + (block.Stop.Minute / 15) : bmp.Width - 1;
 
-            var brush = iclb_Projects.GetHighlight(block.Project) ??
-                        iclb_Features.GetHighlight(block.Feature) ??
-                        iclb_Activities.GetHighlight(block.Activity) ??
-                        Brushes.White;
+            var brush = iclb_Companies.GetHighlight(new[] { block.Company }) ??
+                        iclb_Projects.GetHighlight(new[] { block.Project }) ??
+                        iclb_Features.GetHighlight(new[] { block.Feature }) ??
+                        iclb_Activities.GetHighlight(new[] { block.Activity }) ??
+                        iclb_People.GetHighlight(block.People) ??
+                        (Brushes.White);
 
             g.FillRectangle(brush, new Rectangle(xStart, y, (xStop - xStart) + 1, 1));
           }
@@ -116,23 +128,37 @@ namespace Illusion
 
       // Display Visualization
       pnl_Visualization.VerticalScroll.Value = 0;
-      pnl_Visualization.HorizontalScroll.Value = 0;
       var zoomed = new Bitmap(bmp, new Size(bmp.Width * VisualizationScaleFactor, bmp.Height * VisualizationScaleFactor));
       pb_Visualization.Size = zoomed.Size;
       pb_Visualization.Location = new Point((tpVisualization.Width - pb_Visualization.Width) / 2, 3);
       pb_Visualization.Image = zoomed;
     }
 
-    List<Block> UpdateListBoxAndFilterBlocks(List<Block> blocks, Func<Block, string> getCategory, IllusionCheckedListBox iclb)
+    List<Block> UpdateListBoxAndFilterBlocks(List<Block> blocks, Func<Block, IEnumerable<string>> getCategories, IllusionCheckedListBox iclb)
     {
-      var items = blocks.Select(b => getCategory(b)).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList();
-      items.Sort();
-      iclb.SetItems(items);
-      return blocks.Where(b =>
+      var items = new HashSet<string>();
+      var ret = new List<Block>();
+
+      foreach (var block in blocks)
       {
-        var cat = getCategory(b);
-        return string.IsNullOrWhiteSpace(cat) || iclb.CheckedItems.Contains(cat);
-      }).ToList();
+        var categories = getCategories(block);
+        var contains = false;
+        foreach (var category in categories)
+        {
+          contains = contains || iclb.CheckedItems.Contains(category);
+          items.Add(category);
+        }
+        if (contains)
+        {
+          ret.Add(block);
+        }
+      }
+
+      var sortedItems = new List<string>(items);
+      sortedItems.Sort();
+      iclb.SetItems(sortedItems);
+
+      return ret;
     }
 
     void btn_Load_Click(object sender, EventArgs e)
@@ -158,12 +184,13 @@ namespace Illusion
           stop = stop.AddDays(1);
         AllBlocks.Add(new Block
         {
+          Company = row["Company"].ToString().Trim(),
           Start = start,
           Stop = stop,
           Project = row["Project"].ToString().Trim(),
           Feature = row["Feature"].ToString().Trim(),
           Activity = row["Activity"].ToString().Trim(),
-          People = row["People"].ToString().Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).ToList()
+          People = row["People"].ToString().Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).Concat(new[] { "Self" }).ToList()
         });
       }
       AllBlocks.Sort((a, b) => a.Start.CompareTo(b.Start));
@@ -208,11 +235,13 @@ namespace Illusion
     public readonly Color Color;
     public readonly string Name;
 
-    public Highlight(Color color)
+    public Highlight(string name, int r, int g, int b)
     {
+      var color = Color.FromArgb(r, g, b);
+
       Brush = new SolidBrush(color);
       Color = color;
-      Name = color.Name;
+      Name = name;
     }
   }
 
@@ -220,26 +249,39 @@ namespace Illusion
   {
     public DateTime Start;
     public DateTime Stop;
+    public string Company;
     public string Project;
     public string Feature;
     public string Activity;
     public List<string> People;
 
     public double Hours { get { return (Stop - Start).TotalHours; } }
-    public double DevHours { get { return Hours * (People.Count); } }
+    public double DevHours { get { return Hours * (People.Count - 1); } }
   }
 
   public class Loader
   {
     public static DataTable GetXLSX(string path, string sheetName)
     {
-      var ep = new ExcelPackage(new FileInfo(path));
-      foreach (var worksheet in ep.Workbook.Worksheets)
+      DataTable ret = null;
+
+      var tmpPath = Path.GetTempPath() + Guid.NewGuid().ToString();
+      File.Copy(path, tmpPath);
+
+      using (var ep = new ExcelPackage(new FileInfo(tmpPath)))
       {
-        if (worksheet.Name == sheetName && worksheet.Dimension != null)
-          return SheetToTable(worksheet);
+        foreach (var worksheet in ep.Workbook.Worksheets)
+        {
+          if (worksheet.Name == sheetName && worksheet.Dimension != null)
+          {
+            ret = SheetToTable(worksheet);
+            break;
+          }
+        }
       }
-      return null;
+      File.Delete(tmpPath);
+
+      return ret;
     }
 
     static DataTable SheetToTable(ExcelWorksheet ws)

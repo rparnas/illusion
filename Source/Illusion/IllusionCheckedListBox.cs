@@ -93,9 +93,16 @@ namespace Illusion
       }
     }
 
-    public Brush GetHighlight(string item)
+    public Brush GetHighlight(IEnumerable<string> items)
     {
-      return hclb.Highlighted.ContainsKey(item) ? hclb.Highlighted[item].Brush : null;
+      foreach (var item in items)
+      {
+        if (hclb.Highlighted.ContainsKey(item))
+        {
+          return hclb.Highlighted[item].Brush;
+        }
+      }
+      return null;
     }
   }
 
