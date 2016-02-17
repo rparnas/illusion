@@ -2,6 +2,7 @@ using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -10,7 +11,7 @@ using System.Windows.Forms;
 
 [assembly: AssemblyTitle("Illusion")]
 [assembly: AssemblyProduct("Illusion")]
-[assembly: AssemblyCopyright("Copyright ©  2015")]
+[assembly: AssemblyCopyright("Copyright ©  2016")]
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
 
@@ -18,8 +19,6 @@ namespace Illusion
 {
   public partial class MainForm : Form
   {
-    List<Block> AllBlocks = new List<Block>();
-
     [STAThread]
     public static void Main()
     {
@@ -28,9 +27,108 @@ namespace Illusion
       Application.Run(new MainForm());
     }
 
+    const int VisualizationScaleFactor = 4;
+    List<Block> AllBlocks;
+    bool IgnoreSetup;
+    DateTime VisualizationStartDate;
+    DateTime VisualizationStopDate;
+
     public MainForm()
     {
+      AllBlocks = new List<Block>();
+      IgnoreSetup = false;
+      VisualizationStartDate = DateTime.Now;
+      VisualizationStopDate = DateTime.Now;
+
       InitializeComponent();
+    }
+
+    void Setup()
+    {
+      if (IgnoreSetup)
+      {
+        return;
+      }
+
+      var blocks = AllBlocks.Where(b => b.Start.Date >= dtp_Start.Value && b.Stop.Date <= dtp_Stop.Value).ToList();
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Project, iclb_Projects);
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Feature, iclb_Features);
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Activity, iclb_Activities);
+
+      if (!blocks.Any())
+      {
+        dgv_Stats.DataSource = null;
+        pb_Visualization.Image = null;
+        return;
+      }
+
+      // Compute stats
+      var start = blocks.Min(b => b.Start).Date;
+      var stop = blocks.Max(b => b.Stop).Date;
+      var hours = blocks.Sum(b => b.Hours);
+      var devHours = blocks.Sum(b => b.DevHours);
+      var hourRatio = devHours / hours;
+
+      // Display stats
+      var dt = new DataTable("Stats");
+      dt.Columns.Add("Item");
+      dt.Columns.Add("Value");
+      Action<string, string> addItem = (item, value) =>
+      {
+        var row = dt.NewRow();
+        row["Item"] = item;
+        row["Value"] = value;
+        dt.Rows.Add(row);
+      };
+      addItem("Start",             start.ToString("M/d/yy"));
+      addItem("Stop",              stop.ToString("M/d/yy"));
+      addItem("Hours",             hours.ToString("F2"));
+      addItem("Dev Hours",         devHours .ToString("F2"));
+      addItem("Dev Hours / Hours", hourRatio.ToString("F2"));
+      dgv_Stats.DataSource = dt;
+
+      // Generate Visualization
+      VisualizationStartDate = blocks.First().Start.Date;
+      VisualizationStopDate = blocks.Last().Stop.Date.AddDays(1);
+      var bmp = new Bitmap(24 * 4, (int)Math.Ceiling((VisualizationStopDate - VisualizationStartDate).TotalDays));
+
+      using (var g = Graphics.FromImage(bmp))
+      {
+        g.FillRectangle(Brushes.Black, 0, 0, bmp.Width, bmp.Height);
+
+        foreach (var block in blocks)
+        {
+          int yStart = (block.Start - VisualizationStartDate).Days;
+          int yStop = (block.Stop - VisualizationStartDate).Days;
+
+          for (int y = yStart; y <= yStop; y++)
+          {
+            int xStart = y == yStart ? (block.Start.Hour * 4) + (block.Start.Minute / 15) : 0;
+            int xStop = y == yStop ? (block.Stop.Hour * 4) + (block.Stop.Minute / 15) : bmp.Width - 1;
+
+            g.FillRectangle(Brushes.White, new Rectangle(xStart, y, (xStop - xStart) + 1, 1));
+          }
+        }
+      }
+
+      // Display Visualization
+      var zoomed = new Bitmap(bmp, new Size(bmp.Width * VisualizationScaleFactor, bmp.Height * VisualizationScaleFactor));
+      pb_Visualization.Size = zoomed.Size;
+      pb_Visualization.Left = (tpVisualization.Width - pb_Visualization.Width) / 2;
+      pb_Visualization.Top = 6;
+      pb_Visualization.Image = zoomed;
+    }
+
+    List<Block> UpdateListBoxAndFilterBlocks(List<Block> blocks, Func<Block, string> getCategory, IllusionCheckedListBox iclb)
+    {
+      var items = blocks.Select(b => getCategory(b)).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct().ToList();
+      items.Sort();
+      iclb.SetItems(items);
+      return blocks.Where(b =>
+      {
+        var cat = getCategory(b);
+        return string.IsNullOrWhiteSpace(cat) || iclb.CheckedItems.Contains(cat);
+      }).ToList();
     }
 
     void btn_Load_Click(object sender, EventArgs e)
@@ -64,60 +162,40 @@ namespace Illusion
           People = row["People"].ToString().Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).ToList()
         });
       }
+      AllBlocks.Sort((a, b) => a.Start.CompareTo(b.Start));
 
+      IgnoreSetup = true;
       dtp_Start.Value = AllBlocks.Min(b => b.Start).Date;
       dtp_Stop.Value = AllBlocks.Max(b => b.Stop).Date;
+      IgnoreSetup = false;
 
       Setup();
-    }
-
-    void Setup()
-    {
-      var blocks = AllBlocks.Where(b => b.Start.Date >= dtp_Start.Value && b.Stop.Date <= dtp_Stop.Value).ToList();
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Project, iclb_Projects);
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Feature, iclb_Features);
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.Activity, iclb_Activities);
-
-      var dt = new DataTable();
-      dt.Columns.Add("Item");
-      dt.Columns.Add("Value");
-      Action<string, object> addItem = (item, value) =>
-      {
-        var row = dt.NewRow();
-        row["Item"] = item;
-        row["Value"] = value.ToString();
-        dt.Rows.Add(row);
-      };
-
-      if (blocks.Any())
-      {
-        var start = blocks.Min(b => b.Start);
-        var stop = blocks.Max(b => b.Stop);
-        var hours = blocks.Sum(b => b.Hours);
-        var devHours = blocks.Sum(b => b.DevHours);
-        var hourRatio = devHours / hours;
-
-        addItem("Start", start.ToString("M/d/yy"));
-        addItem("Stop", stop.ToString("M/d/yy"));
-        addItem("Hours", hours);
-        addItem("Dev Hours", devHours);
-        addItem("Dev Hours / Hours", hourRatio);
-      }
-
-      dgv.DataSource = dt;
-    }
-
-    List<Block> UpdateListBoxAndFilterBlocks(List<Block> blocks, Func<Block, string> getCategory, IllusionCheckedListBox iclb)
-    {
-      var items = blocks.Select(b => getCategory(b)).Distinct().ToList();
-      items.Sort();
-      iclb.SetItems(items);
-      return blocks.Where(b => iclb.CheckedItems.Contains(getCategory(b))).ToList();
     }
 
     void dtp_Start_ValueChanged(object sender, EventArgs e) { Setup(); }
 
     void dtp_Stop_ValueChanged(object sender, EventArgs e) { Setup(); }
+
+    void pb_Visualization_MouseLeave(object sender, EventArgs e)
+    {
+      lbl_Visualization.Text = "";
+    }
+
+    void pb_Visualization_MouseMove(object sender, MouseEventArgs e)
+    {
+      if (pb_Visualization.Image == null)
+      {
+        lbl_Visualization.Text = "";
+        return;
+      }
+
+      var pos = pb_Visualization.PointToClient(Cursor.Position);
+      var x = pos.X / VisualizationScaleFactor;
+      var y = pos.Y / VisualizationScaleFactor;
+      var time = VisualizationStartDate.AddMinutes(x * 15).AddDays(y);
+
+      lbl_Visualization.Text = time.ToString("M/d/yy h:mmtt").Replace("AM", "a").Replace("PM", "p");
+    }
   }
 
   class Block
