@@ -195,7 +195,7 @@ namespace Illusion
       this.iclb_Activities.Name = "iclb_Activities";
       this.iclb_Activities.Size = new System.Drawing.Size(150, 321);
       this.iclb_Activities.TabIndex = 3;
-      this.iclb_Activities.ItemCheckChanged += new System.Action(this.Setup);
+      this.iclb_Activities.ItemCheckChanged += new System.Action(this.DisplayBlocks);
       // 
       // iclb_Features
       // 
@@ -206,7 +206,7 @@ namespace Illusion
       this.iclb_Features.Name = "iclb_Features";
       this.iclb_Features.Size = new System.Drawing.Size(150, 705);
       this.iclb_Features.TabIndex = 2;
-      this.iclb_Features.ItemCheckChanged += new System.Action(this.Setup);
+      this.iclb_Features.ItemCheckChanged += new System.Action(this.DisplayBlocks);
       // 
       // iclb_Projects
       // 
@@ -217,7 +217,7 @@ namespace Illusion
       this.iclb_Projects.Name = "iclb_Projects";
       this.iclb_Projects.Size = new System.Drawing.Size(150, 534);
       this.iclb_Projects.TabIndex = 1;
-      this.iclb_Projects.ItemCheckChanged += new System.Action(this.Setup);
+      this.iclb_Projects.ItemCheckChanged += new System.Action(this.DisplayBlocks);
       // 
       // iclb_Companies
       // 
@@ -226,7 +226,7 @@ namespace Illusion
       this.iclb_Companies.Name = "iclb_Companies";
       this.iclb_Companies.Size = new System.Drawing.Size(150, 165);
       this.iclb_Companies.TabIndex = 10;
-      this.iclb_Companies.ItemCheckChanged += new System.Action(this.Setup);
+      this.iclb_Companies.ItemCheckChanged += new System.Action(this.DisplayBlocks);
       // 
       // iclb_People
       // 
@@ -237,7 +237,7 @@ namespace Illusion
       this.iclb_People.Name = "iclb_People";
       this.iclb_People.Size = new System.Drawing.Size(150, 378);
       this.iclb_People.TabIndex = 11;
-      this.iclb_People.ItemCheckChanged += new System.Action(this.Setup);
+      this.iclb_People.ItemCheckChanged += new System.Action(this.DisplayBlocks);
       // 
       // MainForm
       // 

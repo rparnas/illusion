@@ -53,6 +53,7 @@
     <Compile Include="IllusionCheckedListBox.Designer.cs">
       <DependentUpon>IllusionCheckedListBox.cs</DependentUpon>
     </Compile>
+    <Compile Include="Loader.cs" />
     <Compile Include="MainForm.cs">
       <SubType>Form</SubType>
     </Compile>

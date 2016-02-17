@@ -20,6 +20,7 @@ namespace Illusion
   public partial class MainForm : Form
   {
     public static List<Highlight> Highlights;
+    public const int VisualizationScaleFactor = 4;
 
     [STAThread]
     public static void Main()
@@ -39,19 +40,85 @@ namespace Illusion
       Application.Run(new MainForm());
     }
 
-    const int VisualizationScaleFactor = 4;
     List<Block> AllBlocks;
+    List<Inspection> AllInspections;
     bool IgnoreSetup;
 
     public MainForm()
     {
       AllBlocks = new List<Block>();
+      AllInspections = new List<Inspection>();
       IgnoreSetup = false;
 
       InitializeComponent();
     }
 
-    void Setup()
+    void LoadBlocks()
+    {
+      var ofd = new OpenFileDialog();
+      ofd.Filter = "Excel Workbook (*.xlsx)|*.xlsx";
+      if (ofd.ShowDialog() != DialogResult.OK)
+        return;
+
+      var timeSheet = Loader.GetXLSX(ofd.FileName, "Time Sheet");
+      var inspectionSheet = Loader.GetXLSX(ofd.FileName, "Inspections");
+      if (timeSheet == null || inspectionSheet == null)
+        return;
+
+      AllBlocks.Clear();
+      foreach (DataRow row in timeSheet.Rows)
+      {
+        var dateStr = row["Date"].ToString().Trim();
+        var startStr = row["Start"].ToString().Trim();
+        var stopStr = row["Stop"].ToString().Trim();
+        var start = DateTime.ParseExact(dateStr + " " + startStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
+        var stop = DateTime.ParseExact(dateStr + " " + stopStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
+        if (stop < start)
+          stop = stop.AddDays(1);
+
+        AllBlocks.Add(new Block
+        {
+          Company = row["Company"].ToString().Trim(),
+          Start = start,
+          Stop = stop,
+          Project = row["Project"].ToString().Trim(),
+          Feature = row["Feature"].ToString().Trim(),
+          Activity = row["Activity"].ToString().Trim(),
+          People = row["People"].ToString().Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).Concat(new[] { "Self" }).ToList()
+        });
+      }
+      AllBlocks.Sort((a, b) => a.Start.CompareTo(b.Start));
+
+      AllInspections.Clear();
+      foreach (DataRow row in inspectionSheet.Rows)
+      {
+        var dateStr = row["Date"].ToString().Trim();
+        var date = DateTime.ParseExact(dateStr, "M/d/yy", CultureInfo.InvariantCulture);
+
+        var issuesStr = row["Findings"].ToString().Trim();
+        var issues = int.Parse(issuesStr);
+
+        var devHoursStr = row["Total"].ToString().Trim();
+        var devHours = double.Parse(devHoursStr);
+
+        AllInspections.Add(new Inspection
+        {
+          Date = date,
+          Company = row["Company"].ToString().Trim(),
+          Project = row["Project"].ToString().Trim(),
+          Feature = row["Feature"].ToString().Trim(),
+          Findings = issues,
+          DevHours = devHours
+        });
+      }
+
+      IgnoreSetup = true;
+      dtp_Start.Value = AllBlocks.Min(b => b.Start).Date;
+      dtp_Stop.Value = AllBlocks.Max(b => b.Stop).Date;
+      IgnoreSetup = false;
+    }
+
+    void DisplayBlocks()
     {
       if (IgnoreSetup)
       {
@@ -63,7 +130,12 @@ namespace Illusion
       blocks = UpdateListBoxAndFilterBlocks(blocks, b => new [] { b.Project  }, iclb_Projects);
       blocks = UpdateListBoxAndFilterBlocks(blocks, b => new [] { b.Feature  }, iclb_Features);
       blocks = UpdateListBoxAndFilterBlocks(blocks, b => new [] { b.Activity }, iclb_Activities);
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.People,              iclb_People); 
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.People,              iclb_People);
+
+      var inspections = AllInspections.Where(i => i.Date >= dtp_Start.Value.Date && i.Date <= dtp_Stop.Value).ToList();
+      inspections = FilterInspections(inspections, i => new[] { i.Company }, iclb_Companies);
+      inspections = FilterInspections(inspections, i => new[] { i.Project }, iclb_Projects);
+      inspections = FilterInspections(inspections, i => new[] { i.Feature }, iclb_Features);
 
       if (!blocks.Any())
       {
@@ -79,6 +151,10 @@ namespace Illusion
       var devHours = blocks.Sum(b => b.DevHours);
       var hourRatio = devHours / hours;
 
+      var findings = inspections.Sum(i => i.Findings);
+      var inspectionDevHours = inspections.Sum(i => i.DevHours);
+      var findingsPerInspectionDevHour = findings / inspectionDevHours; 
+
       // Display stats
       var dt = new DataTable("Stats");
       dt.Columns.Add("Item");
@@ -90,11 +166,15 @@ namespace Illusion
         row["Value"] = value;
         dt.Rows.Add(row);
       };
-      addItem("Start",             start.ToString("M/d/yy"));
-      addItem("Stop",              stop.ToString("M/d/yy"));
-      addItem("Hours",             hours.ToString("F2"));
-      addItem("Dev Hours",         devHours .ToString("F2"));
-      addItem("Dev Hours / Hours", hourRatio.ToString("F2"));
+      addItem("Start",                           start.ToString("M/d/yy"));
+      addItem("Stop",                            stop.ToString("M/d/yy"));
+      addItem("Hours",                           hours.ToString("F2"));
+      addItem("Dev Hours",                       devHours .ToString("F2"));
+      addItem("Dev Hours / Hours",               hourRatio.ToString("F2"));
+      addItem("Inspections",                     inspections.Count.ToString());
+      addItem("Inspection Findings",             findings.ToString());
+      addItem("Inspection Dev Hours",            inspectionDevHours.ToString("F2"));
+      addItem("Findings / Inspection Dev Hours", findingsPerInspectionDevHour.ToString("F2"));
       dgv_Stats.DataSource = dt;
 
       // Generate Visualization
@@ -161,51 +241,36 @@ namespace Illusion
       return ret;
     }
 
-    void btn_Load_Click(object sender, EventArgs e)
+    List<Inspection> FilterInspections(List<Inspection> inspections, Func<Inspection, IEnumerable<string>> getCategories, IllusionCheckedListBox iclb)
     {
-      var ofd = new OpenFileDialog();
-      ofd.Filter = "Excel Workbook (*.xlsx)|*.xlsx";
-      if (ofd.ShowDialog() != DialogResult.OK)
-        return;
+      var ret = new List<Inspection>();
 
-      var file = Loader.GetXLSX(ofd.FileName, "Time Sheet");
-      if (file == null)
-        return;
-
-      AllBlocks.Clear();
-      foreach (DataRow row in file.Rows)
+      foreach (var inspection in inspections)
       {
-        var dateStr = row["Date"].ToString().Trim();
-        var startStr = row["Start"].ToString().Trim();
-        var stopStr = row["Stop"].ToString().Trim();
-        var start = DateTime.ParseExact(dateStr + " " + startStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
-        var stop = DateTime.ParseExact(dateStr + " " + stopStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
-        if (stop < start)
-          stop = stop.AddDays(1);
-        AllBlocks.Add(new Block
+        var categories = getCategories(inspection);
+        var contains = false;
+        foreach (var category in categories)
         {
-          Company = row["Company"].ToString().Trim(),
-          Start = start,
-          Stop = stop,
-          Project = row["Project"].ToString().Trim(),
-          Feature = row["Feature"].ToString().Trim(),
-          Activity = row["Activity"].ToString().Trim(),
-          People = row["People"].ToString().Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).Concat(new[] { "Self" }).ToList()
-        });
+          contains = contains || iclb.CheckedItems.Contains(category);
+        }
+        if (contains)
+        {
+          ret.Add(inspection);
+        }
       }
-      AllBlocks.Sort((a, b) => a.Start.CompareTo(b.Start));
 
-      IgnoreSetup = true;
-      dtp_Start.Value = AllBlocks.Min(b => b.Start).Date;
-      dtp_Stop.Value = AllBlocks.Max(b => b.Stop).Date;
-      IgnoreSetup = false;
-
-      Setup();
+      return ret;
     }
 
-    void dtp_Start_ValueChanged(object sender, EventArgs e) { Setup(); }
+    void btn_Load_Click(object sender, EventArgs e)
+    {
+      LoadBlocks();
+      DisplayBlocks();
+    }
 
-    void dtp_Stop_ValueChanged(object sender, EventArgs e) { Setup(); }
+    void dtp_Start_ValueChanged(object sender, EventArgs e) { DisplayBlocks(); }
+
+    void dtp_Stop_ValueChanged(object sender, EventArgs e) { DisplayBlocks(); }
 
     void pb_Visualization_MouseLeave(object sender, EventArgs e)
     {
@@ -259,63 +324,13 @@ namespace Illusion
     public double DevHours { get { return Hours * (People.Count - 1); } }
   }
 
-  public class Loader
+  public class Inspection
   {
-    public static DataTable GetXLSX(string path, string sheetName)
-    {
-      DataTable ret = null;
-
-      var tmpPath = Path.GetTempPath() + Guid.NewGuid().ToString();
-      File.Copy(path, tmpPath);
-
-      using (var ep = new ExcelPackage(new FileInfo(tmpPath)))
-      {
-        foreach (var worksheet in ep.Workbook.Worksheets)
-        {
-          if (worksheet.Name == sheetName && worksheet.Dimension != null)
-          {
-            ret = SheetToTable(worksheet);
-            break;
-          }
-        }
-      }
-      File.Delete(tmpPath);
-
-      return ret;
-    }
-
-    static DataTable SheetToTable(ExcelWorksheet ws)
-    {
-      var ret = new DataTable(ws.Name);
-
-      var usedCols = new Dictionary<string, int>();
-      for (int col = 1; col <= ws.Dimension.End.Column; col++)
-      {
-        var cell = ws.Cells[1, col];
-        var text = cell.Text.Replace('\n', '_').Replace('\r', '_');
-
-        // Make up a name for columns without text
-        if (string.IsNullOrWhiteSpace(text))
-          text = cell.Address;
-
-        if (!usedCols.ContainsKey(text))
-          usedCols[text] = 0;
-
-        usedCols[text]++;
-        ret.Columns.Add(text + (usedCols[text] == 1 ? "" : usedCols[text].ToString()));
-      }
-
-      for (int row = 2; row <= ws.Dimension.End.Row; row++)
-      {
-        var newRow = ret.NewRow();
-
-        for (int col = 1; col <= ws.Dimension.End.Column; col++)
-          newRow[col - 1] = ws.Cells[row, col].Text;
-
-        ret.Rows.Add(newRow);
-      }
-
-      return ret;
-    }
+    public DateTime Date;
+    public string Company;
+    public string Project;
+    public string Feature;
+    public int Findings;
+    public double DevHours;
   }
 }
