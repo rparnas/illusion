@@ -28,28 +28,29 @@ namespace Illusion
     /// </summary>
     private void InitializeComponent()
     {
-      this.hclb = new HighlightableCheckedListBox();
+      this.hclb = new Illusion.HighlightableCheckedListBox();
       this.btn_All = new System.Windows.Forms.Button();
       this.btn_None = new System.Windows.Forms.Button();
       this.lbl_Field = new System.Windows.Forms.Label();
       this.SuspendLayout();
       // 
-      // clb
+      // hclb
       // 
       this.hclb.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+      this.hclb.CheckOnClick = true;
       this.hclb.FormattingEnabled = true;
       this.hclb.Location = new System.Drawing.Point(0, 19);
-      this.hclb.Name = "clb";
+      this.hclb.Name = "hclb";
       this.hclb.Size = new System.Drawing.Size(128, 169);
       this.hclb.TabIndex = 0;
       this.hclb.ItemCheck += new System.Windows.Forms.ItemCheckEventHandler(this.hclb_ItemCheck);
       // 
       // btn_All
       // 
-      this.btn_All.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-      this.btn_All.Location = new System.Drawing.Point(19, 189);
+      this.btn_All.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+      this.btn_All.Location = new System.Drawing.Point(0, 189);
       this.btn_All.Name = "btn_All";
       this.btn_All.Size = new System.Drawing.Size(50, 23);
       this.btn_All.TabIndex = 1;
@@ -59,8 +60,8 @@ namespace Illusion
       // 
       // btn_None
       // 
-      this.btn_None.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-      this.btn_None.Location = new System.Drawing.Point(75, 189);
+      this.btn_None.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+      this.btn_None.Location = new System.Drawing.Point(56, 189);
       this.btn_None.Name = "btn_None";
       this.btn_None.Size = new System.Drawing.Size(50, 23);
       this.btn_None.TabIndex = 2;

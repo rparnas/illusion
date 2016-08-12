@@ -19,22 +19,43 @@ namespace Illusion
 {
   public partial class MainForm : Form
   {
-    public static List<Highlight> Highlights;
-    public const int VisualizationScaleFactor = 4;
+    public static List<Highlight> Highlights = new List<Highlight>
+    {
+      new Highlight("Red",    196, 2, 51),
+      new Highlight("Orange", 255, 120, 19),
+      new Highlight("Yellow", 255, 211, 0),
+      new Highlight("Green",  0, 163, 104),
+      new Highlight("Blue",   0, 136, 191),
+      new Highlight("Violet", 131, 63, 135)
+    };
+
+    static List<Stat> Stats = new List<Stat>
+    {
+      new Stat("Start",                           (blks, insps) => blks.Min(b => b.Start).Date                            ),
+      new Stat("Stop",                            (blks, insps) => blks.Max(b => b.Stop).Date                             ),
+      new Stat("Hours",                           (blks, insps) => blks.Sum(b => b.Hours)                                 ),
+      new Stat("Dev Hours",                       (blks, insps) => blks.Sum(b => b.DevHours)                              ),
+      new Stat("Dev Hour Ratio",                  (blks, insps) => blks.Sum(b => b.DevHours) / blks.Sum(b => b.Hours)     ),
+      new Stat("Inspections",                     (blks, insps) => insps.Count()                                          ),
+      new Stat("Inspection Findings",             (blks, insps) => insps.Sum(i => i.Findings)                             ),
+      new Stat("Inspection Dev Hours",            (blks, insps) => insps.Sum(i => i.DevHours)                             ),
+      new Stat("Inspection Findings / Dev Hours", (blks, insps) => insps.Sum(i => i.Findings) / insps.Sum(i => i.DevHours))
+    };
+
+    static List<Grouper> Groupers = new List<Grouper>
+    {
+      new Grouper("Company",  b => b.Company , i => i.Company           ),
+      new Grouper("Project",  b => b.Project , i => i.Project           ),
+      new Grouper("Feature",  b => b.Feature , i => i.Feature           ),
+      new Grouper("Activity", b => b.Activity, i => "Inspection"        ),
+      new Grouper("People",   b => b.People  , i => new List<string> { })
+    };
+
+    static int VisualizationScaleFactor = 4;
 
     [STAThread]
     public static void Main()
     {
-      Highlights = new List<Highlight>
-      {
-        new Highlight("Red",    196, 2, 51),
-        new Highlight("Ornage", 255, 120, 19),
-        new Highlight("Yellow", 255, 211, 0),
-        new Highlight("Green",  0, 163, 104),
-        new Highlight("Blue",   0, 136, 191),
-        new Highlight("Violet", 131, 63, 135)
-      };
-
       Application.EnableVisualStyles();
       Application.SetCompatibleTextRenderingDefault(false);
       Application.Run(new MainForm());
@@ -48,9 +69,11 @@ namespace Illusion
     {
       AllBlocks = new List<Block>();
       AllInspections = new List<Inspection>();
-      IgnoreSetup = false;
+      IgnoreSetup = true;
 
       InitializeComponent();
+      cb_Grouping.DataSource = Groupers;
+      cb_Grouping.SelectedItem = Groupers.First(g => g.Name == "Feature");
     }
 
     void LoadBlocks()
@@ -59,9 +82,10 @@ namespace Illusion
       ofd.Filter = "Excel Workbook (*.xlsx)|*.xlsx";
       if (ofd.ShowDialog() != DialogResult.OK)
         return;
+      var path = ofd.FileName;
 
-      var timeSheet = Loader.GetXLSX(ofd.FileName, "Time Sheet");
-      var inspectionSheet = Loader.GetXLSX(ofd.FileName, "Inspections");
+      var timeSheet = Loader.GetXLSX(path, "Time Sheet");
+      var inspectionSheet = Loader.GetXLSX(path, "Inspections");
       if (timeSheet == null || inspectionSheet == null)
         return;
 
@@ -144,38 +168,34 @@ namespace Illusion
         return;
       }
 
-      // Compute stats
-      var start = blocks.Min(b => b.Start).Date;
-      var stop = blocks.Max(b => b.Stop).Date;
-      var hours = blocks.Sum(b => b.Hours);
-      var devHours = blocks.Sum(b => b.DevHours);
-      var hourRatio = devHours / hours;
-
-      var findings = inspections.Sum(i => i.Findings);
-      var inspectionDevHours = inspections.Sum(i => i.DevHours);
-      var findingsPerInspectionDevHour = findings / inspectionDevHours; 
-
       // Display stats
       var dt = new DataTable("Stats");
-      dt.Columns.Add("Item");
-      dt.Columns.Add("Value");
-      Action<string, string> addItem = (item, value) =>
+      dt.Columns.Add("Group", typeof(string));
+      foreach (var stat in Stats)
+      {
+        dt.Columns.Add(stat.Name, stat.Type);
+      }
+      var groups = ((Grouper)cb_Grouping.SelectedItem).GetGroups(blocks, inspections);
+      foreach (var group in groups)
       {
         var row = dt.NewRow();
-        row["Item"] = item;
-        row["Value"] = value;
+        row["Group"] = group.Name;
+        foreach (var stat in Stats)
+        {
+          row[stat.Name] = stat.Compute(group.Blocks, group.Inspections);
+        }
         dt.Rows.Add(row);
-      };
-      addItem("Start",                           start.ToString("M/d/yy"));
-      addItem("Stop",                            stop.ToString("M/d/yy"));
-      addItem("Hours",                           hours.ToString("F2"));
-      addItem("Dev Hours",                       devHours .ToString("F2"));
-      addItem("Dev Hours / Hours",               hourRatio.ToString("F2"));
-      addItem("Inspections",                     inspections.Count.ToString());
-      addItem("Inspection Findings",             findings.ToString());
-      addItem("Inspection Dev Hours",            inspectionDevHours.ToString("F2"));
-      addItem("Findings / Inspection Dev Hours", findingsPerInspectionDevHour.ToString("F2"));
+      }
+
+      dgv_Stats.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
       dgv_Stats.DataSource = dt;
+
+      foreach (var stat in Stats)
+      {
+        dgv_Stats.Columns[stat.Name].DefaultCellStyle.Format = stat.Format;
+      }
+
+      dgv_Stats.AutoResizeColumns();
 
       // Generate Visualization
       var bmp = new Bitmap(24 * 4, (int)Math.Ceiling((dtp_Stop.Value - dtp_Start.Value).TotalDays));
@@ -268,6 +288,8 @@ namespace Illusion
       DisplayBlocks();
     }
 
+    void cb_Grouping_SelectedIndexChanged(object sender, EventArgs e) { DisplayBlocks(); }
+
     void dtp_Start_ValueChanged(object sender, EventArgs e) { DisplayBlocks(); }
 
     void dtp_Stop_ValueChanged(object sender, EventArgs e) { DisplayBlocks(); }
@@ -294,6 +316,20 @@ namespace Illusion
     }
   }
 
+  public class Block
+  {
+    public DateTime Start;
+    public DateTime Stop;
+    public string Company;
+    public string Project;
+    public string Feature;
+    public string Activity;
+    public List<string> People;
+
+    public double Hours { get { return (Stop - Start).TotalHours; } }
+    public double DevHours { get { return Hours * (People.Count - 1); } }
+  }
+
   public class Highlight
   {
     public readonly Brush Brush;
@@ -310,27 +346,126 @@ namespace Illusion
     }
   }
 
-  public class Block
-  {
-    public DateTime Start;
-    public DateTime Stop;
-    public string Company;
-    public string Project;
-    public string Feature;
-    public string Activity;
-    public List<string> People;
-
-    public double Hours { get { return (Stop - Start).TotalHours; } }
-    public double DevHours { get { return Hours * (People.Count - 1); } }
-  }
-
   public class Inspection
   {
     public DateTime Date;
     public string Company;
     public string Project;
     public string Feature;
+    public Dictionary<string, double> People;
+
     public int Findings;
     public double DevHours;
+  }
+
+  public class Stat
+  {
+    public readonly string Name;
+    readonly Func<IEnumerable<Block>, IEnumerable<Inspection>, object> ComputeInner;
+    public readonly string Format;
+    public readonly Type Type;
+
+    public Stat(string name, Func<IEnumerable<Block>, IEnumerable<Inspection>, DateTime> compute)
+    {
+      Name = name;
+      ComputeInner = (blocks, inspections) => compute(blocks, inspections);
+      Format = "M/d/yy";
+      Type = typeof(DateTime);
+    }
+
+    public Stat(string name, Func<IEnumerable<Block>, IEnumerable<Inspection>, double> compute)
+    {
+      Name = name;
+      ComputeInner = (blocks, inspections) => compute(blocks, inspections);
+      Format = "F2";
+      Type = typeof(double);
+    }
+
+    public Stat(string name, Func<IEnumerable<Block>, IEnumerable<Inspection>, int> compute)
+    {
+      Name = name;
+      ComputeInner = (blocks, inspections) => compute(blocks, inspections);
+      Type = typeof(int);
+    }
+
+    public object Compute(IEnumerable<Block> blocks, IEnumerable<Inspection> inspections)
+    {
+      return ComputeInner(blocks, inspections);
+    }
+  }
+
+  public class Group
+  {
+    public List<Block> Blocks;
+    public List<Inspection> Inspections;
+    public string Name;
+
+    public Group(string name)
+    {
+      Blocks = new List<Block>();
+      Inspections = new List<Inspection>();
+      Name = name;
+    }
+  }
+
+  public class Grouper
+  {
+    public readonly string Name;
+    Func<Block, List<string>> GetBlockKeys;
+    Func<Inspection, List<string>> GetInspectionKeys;
+
+    public Grouper(string name, Func<Block, string> getBlockKey, Func<Inspection, string> getInspectionKey)
+    {
+      Name = name;
+      GetBlockKeys = b => new List<string> { getBlockKey(b) };
+      GetInspectionKeys = i => new List<string> { getInspectionKey(i) };
+    }
+
+    public Grouper(string name, Func<Block, List<string>> getBlockKeys, Func<Inspection, List<string>> getInspectionKeys)
+    {
+      Name = name;
+      GetBlockKeys = getBlockKeys;
+      GetInspectionKeys = getInspectionKeys;
+    }
+
+    public List<Group> GetGroups(IEnumerable<Block> blocks, IEnumerable<Inspection> inspections)
+    {
+      var dict = new Dictionary<string, Group>();
+      dict.Add("Total", new Group("Total")
+      {
+        Blocks = blocks.ToList(),
+        Inspections = inspections.ToList()
+      });
+
+      foreach (var block in blocks)
+      {
+        foreach (var key in GetBlockKeys(block))
+        {
+          if (!dict.ContainsKey(key))
+          {
+            dict[key] = new Group(key);
+          }
+          dict[key].Blocks.Add(block);
+        }
+      }
+
+      foreach (var inspection in inspections)
+      {
+        foreach (var key in GetInspectionKeys(inspection))
+        {
+          if (!dict.ContainsKey(key))
+          {
+            dict[key] = new Group(key);
+          }
+          dict[key].Inspections.Add(inspection);
+        }
+      }
+      return dict.Values.ToList();
+    }
+
+    public override string ToString()
+    {
+      return Name;
+    }
   }
 }
