@@ -26,12 +26,12 @@ namespace Illusion {
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
-        public string LastFile {
+        public string LastPath {
             get {
-                return ((string)(this["LastFile"]));
+                return ((string)(this["LastPath"]));
             }
             set {
-                this["LastFile"] = value;
+                this["LastPath"] = value;
             }
         }
     }

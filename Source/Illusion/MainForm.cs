@@ -74,16 +74,17 @@ namespace Illusion
       InitializeComponent();
       cb_Grouping.DataSource = Groupers;
       cb_Grouping.SelectedItem = Groupers.First(g => g.Name == "Feature");
+
+      var lastPath = Settings.Default.LastPath;
+      if (File.Exists(lastPath))
+      {
+        LoadBlocks(lastPath);
+        DisplayBlocks();
+      }
     }
 
-    void LoadBlocks()
+    void LoadBlocks(string path)
     {
-      var ofd = new OpenFileDialog();
-      ofd.Filter = "Excel Workbook (*.xlsx)|*.xlsx";
-      if (ofd.ShowDialog() != DialogResult.OK)
-        return;
-      var path = ofd.FileName;
-
       var timeSheet = Loader.GetXLSX(path, "Time Sheet");
       var inspectionSheet = Loader.GetXLSX(path, "Inspections");
       if (timeSheet == null || inspectionSheet == null)
@@ -284,8 +285,17 @@ namespace Illusion
 
     void btn_Load_Click(object sender, EventArgs e)
     {
-      LoadBlocks();
+      var ofd = new OpenFileDialog();
+      ofd.Filter = "Excel Workbook (*.xlsx)|*.xlsx";
+      if (ofd.ShowDialog() != DialogResult.OK)
+      {
+        return;
+      }
+      LoadBlocks(ofd.FileName);
       DisplayBlocks();
+
+      Settings.Default.LastPath = ofd.FileName;
+      Settings.Default.Save();
     }
 
     void cb_Grouping_SelectedIndexChanged(object sender, EventArgs e) { DisplayBlocks(); }
