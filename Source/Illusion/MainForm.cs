@@ -81,6 +81,12 @@ namespace Illusion
         LoadBlocks(lastPath);
         DisplayBlocks();
       }
+
+      var allLists = new List<IllusionCheckedListBox> { iclb_Companies, iclb_Projects, iclb_Features, iclb_Activities, iclb_People };
+      for (int i = 0; i < allLists.Count; i++)
+      {
+        allLists[i].Forward = allLists.Skip(i + 1).ToList();
+      }
     }
 
     void LoadBlocks(string path)
@@ -246,7 +252,7 @@ namespace Illusion
         var contains = false;
         foreach (var category in categories)
         {
-          contains = contains || iclb.CheckedItems.Contains(category);
+          contains = contains || iclb.AllCheckedItems.Contains(category);
           items.Add(category);
         }
         if (contains)
@@ -272,7 +278,7 @@ namespace Illusion
         var contains = false;
         foreach (var category in categories)
         {
-          contains = contains || iclb.CheckedItems.Contains(category);
+          contains = contains || iclb.AllCheckedItems.Contains(category);
         }
         if (contains)
         {

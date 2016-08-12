@@ -11,23 +11,19 @@ using System.Windows.Forms.VisualStyles;
 
 namespace Illusion
 {
-  public partial class IllusionCheckedListBox : UserControl
+  public class IllusionCheckedListBox : CheckedListBox
   {
+    public List<IllusionCheckedListBox> Forward;
+    Dictionary<string, Highlight> Highlighted;
+    bool IgnoreItemCheck;
     public event Action ItemCheckChanged;
-    bool IgnoreItemCheck = false;
 
-    public string Label
-    {
-      get { return lbl_Field.Text; }
-      set { lbl_Field.Text = value; }
-    }
-
-    public List<string> CheckedItems
+    public HashSet<string> AllCheckedItems
     {
       get
       {
-        var ret = new List<string>();
-        foreach (var item in hclb.CheckedItems)
+        var ret = new HashSet<string>();
+        foreach (var item in CheckedItems)
         {
           ret.Add(item.ToString());
         }
@@ -37,8 +33,14 @@ namespace Illusion
 
     public IllusionCheckedListBox()
     {
-      InitializeComponent();
-      hclb.ItemHighlightChanged += FireItemCheckChanged;
+      Forward = new List<IllusionCheckedListBox>();
+      Highlighted = new Dictionary<string, Highlight>();
+      IgnoreItemCheck = false;
+
+      CheckOnClick = true;
+      DoubleBuffered = true;
+      ItemCheck += IllusionCheckedListBox_ItemCheck;
+      MouseUp += IllusionCheckedListBox_MouseUp;
     }
 
     void FireItemCheckChanged()
@@ -47,120 +49,16 @@ namespace Illusion
         ItemCheckChanged();
     }
 
-    public void SetItems(List<string> items)
-    {
-      IgnoreItemCheck = true;
-
-      var previouslyChecked = CheckedItems;
-      var previouslySelected = (hclb.SelectedItem ?? "").ToString();
-
-      hclb.Items.Clear();
-      foreach (var item in items)
-      {
-        hclb.Items.Add(item, previouslyChecked.Contains(item));
-        if (previouslySelected == item)
-        {
-          hclb.SelectedItem = item;
-        }
-      }
-
-      IgnoreItemCheck = false;
-    }
-
-    void btn_All_Click(object sender, EventArgs e)
-    {
-      IgnoreItemCheck = true;
-      for (int i = 0; i < hclb.Items.Count; i++)
-        hclb.SetItemChecked(i, true);
-      IgnoreItemCheck = false;
-      FireItemCheckChanged();
-    }
-
-    void btn_None_Click(object sender, EventArgs e)
-    {
-      IgnoreItemCheck = true;
-      for (int i = 0; i < hclb.Items.Count; i++)
-        hclb.SetItemChecked(i, false);
-      IgnoreItemCheck = false;
-      FireItemCheckChanged();
-    }
-
-    void hclb_ItemCheck(object sender, ItemCheckEventArgs e)
-    {
-      if (!IgnoreItemCheck)
-      {
-        BeginInvoke((MethodInvoker)(() => FireItemCheckChanged()));
-      }
-    }
-
     public Brush GetHighlight(IEnumerable<string> items)
     {
       foreach (var item in items)
       {
-        if (hclb.Highlighted.ContainsKey(item))
+        if (Highlighted.ContainsKey(item))
         {
-          return hclb.Highlighted[item].Brush;
+          return Highlighted[item].Brush;
         }
       }
       return null;
-    }
-  }
-
-  class HighlightableCheckedListBox : CheckedListBox
-  {
-    public event Action ItemHighlightChanged;
-
-    public Dictionary<string, Highlight> Highlighted;
-
-    public HighlightableCheckedListBox()
-    {
-      DoubleBuffered = true;
-      Highlighted = new Dictionary<string, Highlight>();
-
-      MouseUp += hclb_MouseUp;
-    }
-
-    void hclb_MouseUp(object sender, MouseEventArgs e)
-    {
-      if (e.Button != MouseButtons.Right)
-      {
-        return;
-      }
-
-      SelectedIndex = IndexFromPoint(e.Location);
-
-      if (SelectedIndex == NoMatches)
-      {
-        return;
-      }
-
-      var item = (SelectedItem ?? "").ToString();
-
-      var cm = new ContextMenu();
-      foreach (var highlight in MainForm.Highlights)
-      {
-        var h = highlight;
-        var isChecked = Highlighted.ContainsKey(item) && Highlighted[item] == h;
-
-        cm.MenuItems.Add(new MenuItem(h.Name, (sender2, e2) =>
-        {
-          if (isChecked)
-          {
-            Highlighted.Remove(item);
-          }
-          else
-          {
-            Highlighted[item] = h;
-          }
-          Refresh();
-          if (ItemHighlightChanged != null)
-          {
-            ItemHighlightChanged();
-          }
-        })
-        { Checked = isChecked });
-      }
-      cm.Show(this, e.Location);
     }
 
     protected override void OnDrawItem(DrawItemEventArgs e)
@@ -183,6 +81,110 @@ namespace Illusion
         CheckBoxRenderer.DrawCheckBox(e.Graphics, new Point(dx, e.Bounds.Top + dx), GetItemChecked(e.Index) ? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal);
         e.Graphics.DrawString(Items[e.Index].ToString(), Font, brush, new Rectangle(e.Bounds.Height, e.Bounds.Top, e.Bounds.Width - e.Bounds.Height, e.Bounds.Height));
       }
+    }
+
+    void SelectAll()
+    {
+      SelectAll(true);
+    }
+
+    void SelectAllForward()
+    {
+      SelectAll(true);
+      foreach (var iclb in Forward)
+      {
+        iclb.SelectAll(true);
+      }
+    }
+
+    void SelectNone()
+    {
+      SelectAll(false);
+    }
+
+    void SelectAll(bool value)
+    {
+      IgnoreItemCheck = true;
+      for (int i = 0; i < Items.Count; i++)
+        SetItemChecked(i, value);
+      IgnoreItemCheck = false;
+      FireItemCheckChanged();
+    }
+
+    public void SetItems(List<string> items)
+    {
+      IgnoreItemCheck = true;
+
+      var previouslyChecked = AllCheckedItems;
+      var previouslySelected = (SelectedItem ?? "").ToString();
+
+      Items.Clear();
+      foreach (var item in items)
+      {
+        Items.Add(item, previouslyChecked.Contains(item));
+        if (previouslySelected == item)
+        {
+          SelectedItem = item;
+        }
+      }
+
+      IgnoreItemCheck = false;
+    }
+
+    void IllusionCheckedListBox_ItemCheck(object sender, ItemCheckEventArgs e)
+    {
+      if (!IgnoreItemCheck)
+      {
+        BeginInvoke((MethodInvoker)(() => FireItemCheckChanged()));
+      }
+    }
+
+    void IllusionCheckedListBox_MouseUp(object sender, MouseEventArgs e)
+    {
+      if (e.Button != MouseButtons.Right)
+      {
+        return;
+      }
+
+      SelectedIndex = IndexFromPoint(e.Location);
+
+      if (SelectedIndex == NoMatches)
+      {
+        return;
+      }
+
+      var item = (SelectedItem ?? "").ToString();
+
+      var cm = new ContextMenu();
+
+      // Add Select All, None controls.
+      cm.MenuItems.Add(new MenuItem("Select All", (s2, e2) => SelectAll()));
+      cm.MenuItems.Add(new MenuItem("Select All Forward", (s2, e2) => SelectAllForward()));
+      cm.MenuItems.Add(new MenuItem("Select None", (s2, e2) => SelectNone()));
+      cm.MenuItems.Add(new MenuItem("-"));
+
+      // Highlighting
+      foreach (var highlight in MainForm.Highlights)
+      {
+        var h = highlight;
+        var isChecked = Highlighted.ContainsKey(item) && Highlighted[item] == h;
+
+        cm.MenuItems.Add(new MenuItem(h.Name, (s2, e2) =>
+        {
+          if (isChecked)
+          {
+            Highlighted.Remove(item);
+          }
+          else
+          {
+            Highlighted[item] = h;
+          }
+          Refresh();
+          FireItemCheckChanged();
+        })
+        { Checked = isChecked });
+      }
+      cm.Show(this, e.Location);
     }
   }
 }

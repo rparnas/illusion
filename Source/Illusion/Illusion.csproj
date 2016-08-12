@@ -48,10 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="IllusionCheckedListBox.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="IllusionCheckedListBox.Designer.cs">
-      <DependentUpon>IllusionCheckedListBox.cs</DependentUpon>
+      <SubType>Component</SubType>
     </Compile>
     <Compile Include="Loader.cs" />
     <Compile Include="MainForm.cs">
@@ -70,9 +67,6 @@
     <Folder Include="Properties\" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="IllusionCheckedListBox.resx">
-      <DependentUpon>IllusionCheckedListBox.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
     </EmbeddedResource>

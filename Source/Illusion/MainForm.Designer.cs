@@ -42,13 +42,18 @@ namespace Illusion
       this.pnl_Visualization = new System.Windows.Forms.Panel();
       this.pb_Visualization = new System.Windows.Forms.PictureBox();
       this.cb_Grouping = new System.Windows.Forms.ComboBox();
-      this.label1 = new System.Windows.Forms.Label();
+      this.lbl_to = new System.Windows.Forms.Label();
       this.lbl_Grouping = new System.Windows.Forms.Label();
       this.iclb_People = new Illusion.IllusionCheckedListBox();
-      this.iclb_Companies = new Illusion.IllusionCheckedListBox();
       this.iclb_Activities = new Illusion.IllusionCheckedListBox();
       this.iclb_Features = new Illusion.IllusionCheckedListBox();
       this.iclb_Projects = new Illusion.IllusionCheckedListBox();
+      this.iclb_Companies = new Illusion.IllusionCheckedListBox();
+      this.lbl_Companies = new System.Windows.Forms.Label();
+      this.lbl_Projects = new System.Windows.Forms.Label();
+      this.lbl_Features = new System.Windows.Forms.Label();
+      this.lbl_People = new System.Windows.Forms.Label();
+      this.lbl_Activities = new System.Windows.Forms.Label();
       ((System.ComponentModel.ISupportInitialize)(this.dgv_Stats)).BeginInit();
       this.tc.SuspendLayout();
       this.tpStats.SuspendLayout();
@@ -208,15 +213,15 @@ namespace Illusion
       this.cb_Grouping.TabIndex = 12;
       this.cb_Grouping.SelectedIndexChanged += new System.EventHandler(this.cb_Grouping_SelectedIndexChanged);
       // 
-      // label1
+      // lbl_to
       // 
-      this.label1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      this.label1.AutoSize = true;
-      this.label1.Location = new System.Drawing.Point(795, 698);
-      this.label1.Name = "label1";
-      this.label1.Size = new System.Drawing.Size(16, 13);
-      this.label1.TabIndex = 13;
-      this.label1.Text = "to";
+      this.lbl_to.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+      this.lbl_to.AutoSize = true;
+      this.lbl_to.Location = new System.Drawing.Point(795, 698);
+      this.lbl_to.Name = "lbl_to";
+      this.lbl_to.Size = new System.Drawing.Size(16, 13);
+      this.lbl_to.TabIndex = 13;
+      this.lbl_to.Text = "to";
       // 
       // lbl_Grouping
       // 
@@ -232,28 +237,17 @@ namespace Illusion
       // 
       this.iclb_People.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left)));
-      this.iclb_People.Label = "People";
-      this.iclb_People.Location = new System.Drawing.Point(324, 339);
+      this.iclb_People.Location = new System.Drawing.Point(324, 352);
       this.iclb_People.Name = "iclb_People";
-      this.iclb_People.Size = new System.Drawing.Size(150, 378);
+      this.iclb_People.Size = new System.Drawing.Size(150, 364);
       this.iclb_People.TabIndex = 11;
       this.iclb_People.ItemCheckChanged += new System.Action(this.DisplayBlocks);
       // 
-      // iclb_Companies
-      // 
-      this.iclb_Companies.Label = "Companies";
-      this.iclb_Companies.Location = new System.Drawing.Point(12, 12);
-      this.iclb_Companies.Name = "iclb_Companies";
-      this.iclb_Companies.Size = new System.Drawing.Size(150, 165);
-      this.iclb_Companies.TabIndex = 10;
-      this.iclb_Companies.ItemCheckChanged += new System.Action(this.DisplayBlocks);
-      // 
       // iclb_Activities
       // 
-      this.iclb_Activities.Label = "Activities";
-      this.iclb_Activities.Location = new System.Drawing.Point(324, 12);
+      this.iclb_Activities.Location = new System.Drawing.Point(324, 23);
       this.iclb_Activities.Name = "iclb_Activities";
-      this.iclb_Activities.Size = new System.Drawing.Size(150, 321);
+      this.iclb_Activities.Size = new System.Drawing.Size(150, 304);
       this.iclb_Activities.TabIndex = 3;
       this.iclb_Activities.ItemCheckChanged += new System.Action(this.DisplayBlocks);
       // 
@@ -261,10 +255,9 @@ namespace Illusion
       // 
       this.iclb_Features.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left)));
-      this.iclb_Features.Label = "Features";
-      this.iclb_Features.Location = new System.Drawing.Point(168, 12);
+      this.iclb_Features.Location = new System.Drawing.Point(168, 22);
       this.iclb_Features.Name = "iclb_Features";
-      this.iclb_Features.Size = new System.Drawing.Size(150, 705);
+      this.iclb_Features.Size = new System.Drawing.Size(150, 694);
       this.iclb_Features.TabIndex = 2;
       this.iclb_Features.ItemCheckChanged += new System.Action(this.DisplayBlocks);
       // 
@@ -272,20 +265,77 @@ namespace Illusion
       // 
       this.iclb_Projects.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left)));
-      this.iclb_Projects.Label = "Projects";
-      this.iclb_Projects.Location = new System.Drawing.Point(12, 183);
+      this.iclb_Projects.Location = new System.Drawing.Point(12, 185);
       this.iclb_Projects.Name = "iclb_Projects";
-      this.iclb_Projects.Size = new System.Drawing.Size(150, 534);
+      this.iclb_Projects.Size = new System.Drawing.Size(150, 529);
       this.iclb_Projects.TabIndex = 1;
       this.iclb_Projects.ItemCheckChanged += new System.Action(this.DisplayBlocks);
+      // 
+      // iclb_Companies
+      // 
+      this.iclb_Companies.Location = new System.Drawing.Point(12, 22);
+      this.iclb_Companies.Name = "iclb_Companies";
+      this.iclb_Companies.Size = new System.Drawing.Size(150, 139);
+      this.iclb_Companies.TabIndex = 10;
+      this.iclb_Companies.ItemCheckChanged += new System.Action(this.DisplayBlocks);
+      // 
+      // lbl_Companies
+      // 
+      this.lbl_Companies.AutoSize = true;
+      this.lbl_Companies.Location = new System.Drawing.Point(12, 6);
+      this.lbl_Companies.Name = "lbl_Companies";
+      this.lbl_Companies.Size = new System.Drawing.Size(59, 13);
+      this.lbl_Companies.TabIndex = 15;
+      this.lbl_Companies.Text = "Companies";
+      // 
+      // lbl_Projects
+      // 
+      this.lbl_Projects.AutoSize = true;
+      this.lbl_Projects.Location = new System.Drawing.Point(16, 168);
+      this.lbl_Projects.Name = "lbl_Projects";
+      this.lbl_Projects.Size = new System.Drawing.Size(45, 13);
+      this.lbl_Projects.TabIndex = 16;
+      this.lbl_Projects.Text = "Projects";
+      // 
+      // lbl_Features
+      // 
+      this.lbl_Features.AutoSize = true;
+      this.lbl_Features.Location = new System.Drawing.Point(165, 6);
+      this.lbl_Features.Name = "lbl_Features";
+      this.lbl_Features.Size = new System.Drawing.Size(48, 13);
+      this.lbl_Features.TabIndex = 17;
+      this.lbl_Features.Text = "Features";
+      // 
+      // lbl_People
+      // 
+      this.lbl_People.AutoSize = true;
+      this.lbl_People.Location = new System.Drawing.Point(326, 337);
+      this.lbl_People.Name = "lbl_People";
+      this.lbl_People.Size = new System.Drawing.Size(40, 13);
+      this.lbl_People.TabIndex = 18;
+      this.lbl_People.Text = "People";
+      // 
+      // lbl_Activities
+      // 
+      this.lbl_Activities.AutoSize = true;
+      this.lbl_Activities.Location = new System.Drawing.Point(326, 6);
+      this.lbl_Activities.Name = "lbl_Activities";
+      this.lbl_Activities.Size = new System.Drawing.Size(49, 13);
+      this.lbl_Activities.TabIndex = 19;
+      this.lbl_Activities.Text = "Activities";
       // 
       // MainForm
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.ClientSize = new System.Drawing.Size(1008, 729);
+      this.Controls.Add(this.lbl_Activities);
+      this.Controls.Add(this.lbl_People);
+      this.Controls.Add(this.lbl_Features);
+      this.Controls.Add(this.lbl_Projects);
+      this.Controls.Add(this.lbl_Companies);
       this.Controls.Add(this.lbl_Grouping);
-      this.Controls.Add(this.label1);
+      this.Controls.Add(this.lbl_to);
       this.Controls.Add(this.cb_Grouping);
       this.Controls.Add(this.iclb_People);
       this.Controls.Add(this.iclb_Companies);
@@ -316,8 +366,6 @@ namespace Illusion
     #endregion
 
     private System.Windows.Forms.Button btn_Load;
-    private IllusionCheckedListBox iclb_Projects;
-    private IllusionCheckedListBox iclb_Features;
     private IllusionCheckedListBox iclb_Activities;
     private System.Windows.Forms.DataGridView dgv_Stats;
     private System.Windows.Forms.DateTimePicker dtp_Start;
@@ -329,11 +377,18 @@ namespace Illusion
     private System.Windows.Forms.PictureBox pb_Visualization;
     private System.Windows.Forms.Panel pnl_Visualization;
     private System.Windows.Forms.Label lbl_Visualization;
-    private IllusionCheckedListBox iclb_Companies;
     private IllusionCheckedListBox iclb_People;
     private System.Windows.Forms.ComboBox cb_Grouping;
-    private System.Windows.Forms.Label label1;
+    private System.Windows.Forms.Label lbl_to;
     private System.Windows.Forms.Label lbl_Grouping;
+    private IllusionCheckedListBox iclb_Features;
+    private IllusionCheckedListBox iclb_Projects;
+    private IllusionCheckedListBox iclb_Companies;
+    private System.Windows.Forms.Label lbl_Companies;
+    private System.Windows.Forms.Label lbl_Projects;
+    private System.Windows.Forms.Label lbl_Features;
+    private System.Windows.Forms.Label lbl_People;
+    private System.Windows.Forms.Label lbl_Activities;
   }
 }
 
