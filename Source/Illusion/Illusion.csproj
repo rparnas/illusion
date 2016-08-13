@@ -62,6 +62,7 @@
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
       <DependentUpon>Settings.settings</DependentUpon>
     </Compile>
+    <Compile Include="Thing.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />

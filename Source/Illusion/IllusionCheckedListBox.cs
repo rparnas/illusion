@@ -83,23 +83,12 @@ namespace Illusion
       }
     }
 
-    void SelectAll()
-    {
-      SelectAll(true);
-    }
-
     void SelectAllForward()
     {
-      SelectAll(true);
       foreach (var iclb in Forward)
       {
         iclb.SelectAll(true);
       }
-    }
-
-    void SelectNone()
-    {
-      SelectAll(false);
     }
 
     void SelectAll(bool value)
@@ -158,9 +147,14 @@ namespace Illusion
       var cm = new ContextMenu();
 
       // Add Select All, None controls.
-      cm.MenuItems.Add(new MenuItem("Select All", (s2, e2) => SelectAll()));
-      cm.MenuItems.Add(new MenuItem("Select All Forward", (s2, e2) => SelectAllForward()));
-      cm.MenuItems.Add(new MenuItem("Select None", (s2, e2) => SelectNone()));
+      cm.MenuItems.Add(new MenuItem("Select All", (s2, e2) => SelectAll(true)));
+      cm.MenuItems.Add(new MenuItem("Deselect All", (s2, e2) => SelectAll(false)));
+      cm.MenuItems.Add(new MenuItem("Select Forward", (s2, e2) =>
+      {
+        SetItemChecked(SelectedIndex, true);
+        FireItemCheckChanged();
+        SelectAllForward();
+      }) { Enabled = SelectedItem != null });
       cm.MenuItems.Add(new MenuItem("-"));
 
       // Highlighting

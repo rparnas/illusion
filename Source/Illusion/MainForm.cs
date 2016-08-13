@@ -31,25 +31,56 @@ namespace Illusion
 
     static List<Stat> Stats = new List<Stat>
     {
-      new Stat("Start",                           (blks, insps) => blks.Min(b => b.Start).Date                            ),
-      new Stat("Stop",                            (blks, insps) => blks.Max(b => b.Stop).Date                             ),
-      new Stat("Hours",                           (blks, insps) => blks.Sum(b => b.Hours)                                 ),
-      new Stat("Dev Hours",                       (blks, insps) => blks.Sum(b => b.DevHours)                              ),
-      new Stat("Dev Hour Ratio",                  (blks, insps) => blks.Sum(b => b.DevHours) / blks.Sum(b => b.Hours)     ),
-      new Stat("Inspections",                     (blks, insps) => insps.Count()                                          ),
-      new Stat("Inspection Findings",             (blks, insps) => insps.Sum(i => i.Findings)                             ),
-      new Stat("Inspection Dev Hours",            (blks, insps) => insps.Sum(i => i.DevHours)                             ),
-      new Stat("Inspection Findings / Dev Hours", (blks, insps) => insps.Sum(i => i.Findings) / insps.Sum(i => i.DevHours))
+      new Stat("Start",                           g => g.Blocks.Min(b => b.Start).Date                                        ),
+      new Stat("Stop",                            g => g.Blocks.Max(b => b.Stop).Date                                         ),
+      new Stat("Hours",                           g => g.Blocks.Sum(b => b.Hours)                                             ),
+      new Stat("Dev Hours",                       g => g.Blocks.Sum(b => b.DevHours)                                          ),
+      new Stat("Dev Hour Ratio",                  g => g.Blocks.Sum(b => b.DevHours) / g.Blocks.Sum(b => b.Hours)             ),
+      new Stat("Inspections",                     g => g.Inspections.Count()                                                  ),
+      new Stat("Inspection Findings",             g => g.Inspections.Sum(i => i.Findings)                                     ),
+      new Stat("Inspection Dev Hours",            g => g.Inspections.Sum(i => i.DevHours)                                     ),
+      new Stat("Inspection Findings / Dev Hours", g => g.Inspections.Sum(i => i.Findings) / g.Inspections.Sum(i => i.DevHours))
+    };
+
+    List<Stat> Overviews = new List<Stat>
+    {
+      new Stat("Weeks",                           g => g.FilterWeeks                                                                  ),
+      new Stat("Work Hours",                      g => g.Blocks.Where(b => IsWork(b)).Sum(b => b.Hours)                               ),
+      new Stat("Food Hours",                      g => g.Blocks.Where(b => IsFood(b)).Sum(b => b.Hours)                               ),
+      new Stat("PTO Hours",                       g => g.Blocks.Where(b => IsPTO(b)).Sum(b => b.Hours)                                ),
+      new Stat("Total Hours",                     g => g.Blocks.Sum(b => b.Hours)                                                     ),
+      new Stat("Work Hours / Week",               g => g.Blocks.Where(b => IsWork(b)).Sum(b => b.Hours) / g.FilterWeeks               ),
+      new Stat("Food Hours / Week",               g => g.Blocks.Where(b => IsFood(b)).Sum(b => b.Hours) / g.FilterWeeks               ),
+      new Stat("PTO Hours / Week",                g => g.Blocks.Where(b => IsPTO(b)).Sum(b => b.Hours) / g.FilterWeeks                ),
+      new Stat("Total Hours / Week",              g => g.Blocks.Sum(b => b.Hours) / g.FilterWeeks                                     ),
+      new Stat("Income",                          g => g.Incomes.Sum(i => i.Amount)                                                   ),
+      new Stat("Income / Work Hours",             g => g.Incomes.Sum(i => i.Amount) / g.Blocks.Where(b => IsWork(b)).Sum(b => b.Hours)),
+      new Stat("Income / Total Hours",            g => g.Incomes.Sum(i => i.Amount) / g.Blocks.Sum(b => b.Hours)                      ),
     };
 
     static List<Grouper> Groupers = new List<Grouper>
     {
-      new Grouper("Company",  b => b.Company , i => i.Company           ),
-      new Grouper("Project",  b => b.Project , i => i.Project           ),
-      new Grouper("Feature",  b => b.Feature , i => i.Feature           ),
-      new Grouper("Activity", b => b.Activity, i => "Inspection"        ),
-      new Grouper("People",   b => b.People  , i => new List<string> { })
+      new Grouper("Company",  c => c.Company),
+      new Grouper("Project",  c => c.Project),
+      new Grouper("Feature",  c => c.Feature),
+      new Grouper("Activity", c => c.Activity),
+      new Grouper("People",   c => c.People)
     };
+
+    static bool IsWork(Block b)
+    {
+      return !IsFood(b) && !IsPTO(b);
+    }
+
+    static bool IsFood(Block b)
+    {
+      return b.Project == "_Misc" && b.Feature == "Food";
+    }
+
+    static bool IsPTO(Block b)
+    {
+      return b.Project == "_Misc" && b.Feature == "PTO";
+    }
 
     static int VisualizationScaleFactor = 4;
 
@@ -63,12 +94,14 @@ namespace Illusion
 
     List<Block> AllBlocks;
     List<Inspection> AllInspections;
+    List<Income> AllIncomes;
     bool IgnoreSetup;
 
     public MainForm()
     {
       AllBlocks = new List<Block>();
       AllInspections = new List<Inspection>();
+      AllIncomes = new List<Income>();
       IgnoreSetup = true;
 
       InitializeComponent();
@@ -93,7 +126,8 @@ namespace Illusion
     {
       var timeSheet = Loader.GetXLSX(path, "Time Sheet");
       var inspectionSheet = Loader.GetXLSX(path, "Inspections");
-      if (timeSheet == null || inspectionSheet == null)
+      var incomeSheet = Loader.GetXLSX(path, "Income");
+      if (timeSheet == null || inspectionSheet == null || incomeSheet == null)
         return;
 
       AllBlocks.Clear();
@@ -109,9 +143,9 @@ namespace Illusion
 
         AllBlocks.Add(new Block
         {
-          Company = row["Company"].ToString().Trim(),
           Start = start,
           Stop = stop,
+          Company = row["Company"].ToString().Trim(),
           Project = row["Project"].ToString().Trim(),
           Feature = row["Feature"].ToString().Trim(),
           Activity = row["Activity"].ToString().Trim(),
@@ -143,6 +177,27 @@ namespace Illusion
         });
       }
 
+      AllIncomes.Clear();
+      foreach (DataRow row in incomeSheet.Rows)
+      {
+        var amountStr = row["Amount"].ToString().Trim();
+        var amount = int.Parse(amountStr);
+
+        var checkDateStr = row["Check Date"].ToString();
+        var startStr = row["Start"].ToString();
+        var stopStr = row["Stop"].ToString();
+
+        AllIncomes.Add(new Income
+        {
+          Amount = amount,
+          Bonus = !string.IsNullOrWhiteSpace(row["Bonus"].ToString()),
+          CheckDate = string.IsNullOrWhiteSpace(checkDateStr) ? null : (DateTime?)DateTime.ParseExact(checkDateStr, "M/d/yy", CultureInfo.InvariantCulture),
+          Company = row["Company"].ToString().Trim(),
+          Start = DateTime.ParseExact(startStr, "M/d/yy", CultureInfo.InvariantCulture),
+          Stop = DateTime.ParseExact(stopStr, "M/d/yy", CultureInfo.InvariantCulture),
+        });
+      }
+
       IgnoreSetup = true;
       dtp_Start.Value = AllBlocks.Min(b => b.Start).Date;
       dtp_Stop.Value = AllBlocks.Max(b => b.Stop).Date;
@@ -164,9 +219,12 @@ namespace Illusion
       blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.People,              iclb_People);
 
       var inspections = AllInspections.Where(i => i.Date >= dtp_Start.Value.Date && i.Date <= dtp_Stop.Value).ToList();
-      inspections = FilterInspections(inspections, i => new[] { i.Company }, iclb_Companies);
-      inspections = FilterInspections(inspections, i => new[] { i.Project }, iclb_Projects);
-      inspections = FilterInspections(inspections, i => new[] { i.Feature }, iclb_Features);
+      inspections = Filter(inspections, i => new[] { i.Company }, iclb_Companies);
+      inspections = Filter(inspections, i => new[] { i.Project }, iclb_Projects);
+      inspections = Filter(inspections, i => new[] { i.Feature }, iclb_Features);
+
+      var incomes = AllIncomes.Select(i => Chop(i, dtp_Start.Value, dtp_Stop.Value)).Where(i => i != null).ToList();
+      incomes = Filter(incomes, i => new[] { i.Company }, iclb_Companies);
 
       if (!blocks.Any())
       {
@@ -175,34 +233,10 @@ namespace Illusion
         return;
       }
 
-      // Display stats
-      var dt = new DataTable("Stats");
-      dt.Columns.Add("Group", typeof(string));
-      foreach (var stat in Stats)
-      {
-        dt.Columns.Add(stat.Name, stat.Type);
-      }
-      var groups = ((Grouper)cb_Grouping.SelectedItem).GetGroups(blocks, inspections);
-      foreach (var group in groups)
-      {
-        var row = dt.NewRow();
-        row["Group"] = group.Name;
-        foreach (var stat in Stats)
-        {
-          row[stat.Name] = stat.Compute(group.Blocks, group.Inspections);
-        }
-        dt.Rows.Add(row);
-      }
-
-      dgv_Stats.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-      dgv_Stats.DataSource = dt;
-
-      foreach (var stat in Stats)
-      {
-        dgv_Stats.Columns[stat.Name].DefaultCellStyle.Format = stat.Format;
-      }
-
-      dgv_Stats.AutoResizeColumns();
+      // Display stats and overview.
+      var groups = ((Grouper)cb_Grouping.SelectedItem).GetGroups(blocks, inspections, incomes, dtp_Start.Value, dtp_Stop.Value);
+      DisplayStats("Stats", dgv_Stats, groups, Stats);
+      DisplayStats("Overview", dgv_Overview, groups, Overviews);
 
       // Generate Visualization
       var bmp = new Bitmap(24 * 4, (int)Math.Ceiling((dtp_Stop.Value - dtp_Start.Value).TotalDays));
@@ -234,11 +268,79 @@ namespace Illusion
       }
 
       // Display Visualization
+      pnl_Visualization.VerticalScroll.Visible = true;
       pnl_Visualization.VerticalScroll.Value = 0;
       var zoomed = new Bitmap(bmp, new Size(bmp.Width * VisualizationScaleFactor, bmp.Height * VisualizationScaleFactor));
       pb_Visualization.Size = zoomed.Size;
       pb_Visualization.Location = new Point((tpVisualization.Width - pb_Visualization.Width) / 2, 3);
       pb_Visualization.Image = zoomed;
+    }
+
+    static Income Chop(Income income, DateTime start, DateTime stop)
+    {
+      if (income.Start >= start && income.Stop <= stop)
+      {
+        return income;
+      }
+      if ((income.Start <= start && income.Stop <= start) || (income.Start >= stop && income.Stop >= stop))
+      {
+        return null;
+      }
+
+      var ret = new Income
+      {
+        Amount = income.Amount,
+        Bonus = income.Bonus,
+        CheckDate = income.CheckDate,
+        Company = income.Company,
+        Start = income.Start,
+        Stop = income.Stop
+      };
+      
+      if (income.Start < start)
+      {
+        ret.Start = start;
+      }
+      if (income.Stop > stop)
+      {
+        ret.Stop = stop;
+      }
+      ret.Amount = (int)Math.Round(((double)ret.Amount) * ((income.Hours - ret.Hours)/income.Hours));
+
+      return ret;
+    }
+
+    static void DisplayStats(string name, DataGridView dgv, List<Group> groups, List<Stat> stats)
+    {
+      var dt = new DataTable("Stats");
+      dt.Columns.Add("Group", typeof(string));
+
+      foreach (var stat in stats)
+      {
+        dt.Columns.Add(stat.Name, stat.Type);
+      }
+
+      foreach (var group in groups)
+      {
+        var row = dt.NewRow();
+        row["Group"] = group.Name;
+        foreach (var stat in stats)
+        {
+          row[stat.Name] = stat.Compute(group);
+        }
+        dt.Rows.Add(row);
+      }
+
+      dgv.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+      dgv.DataSource = dt;
+
+      foreach (var stat in stats)
+      {
+        dgv.Columns[stat.Name].DefaultCellStyle.Format = stat.Format;
+      }
+
+      dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders;
+      dgv.AutoResizeColumns();
     }
 
     List<Block> UpdateListBoxAndFilterBlocks(List<Block> blocks, Func<Block, IEnumerable<string>> getCategories, IllusionCheckedListBox iclb)
@@ -268,13 +370,13 @@ namespace Illusion
       return ret;
     }
 
-    List<Inspection> FilterInspections(List<Inspection> inspections, Func<Inspection, IEnumerable<string>> getCategories, IllusionCheckedListBox iclb)
+    List<T> Filter<T>(List<T> items, Func<T, IEnumerable<string>> getCategories, IllusionCheckedListBox iclb)
     {
-      var ret = new List<Inspection>();
+      var ret = new List<T>();
 
-      foreach (var inspection in inspections)
+      foreach (var item in items)
       {
-        var categories = getCategories(inspection);
+        var categories = getCategories(item);
         var contains = false;
         foreach (var category in categories)
         {
@@ -282,7 +384,7 @@ namespace Illusion
         }
         if (contains)
         {
-          ret.Add(inspection);
+          ret.Add(item);
         }
       }
 
@@ -305,6 +407,15 @@ namespace Illusion
     }
 
     void cb_Grouping_SelectedIndexChanged(object sender, EventArgs e) { DisplayBlocks(); }
+
+    void cb_IgnoreParenthesis_CheckedChanged(object sender, EventArgs e)
+    {
+      foreach (var block in AllBlocks)
+      {
+
+      }
+      DisplayBlocks();
+    }
 
     void dtp_Start_ValueChanged(object sender, EventArgs e) { DisplayBlocks(); }
 
@@ -332,20 +443,6 @@ namespace Illusion
     }
   }
 
-  public class Block
-  {
-    public DateTime Start;
-    public DateTime Stop;
-    public string Company;
-    public string Project;
-    public string Feature;
-    public string Activity;
-    public List<string> People;
-
-    public double Hours { get { return (Stop - Start).TotalHours; } }
-    public double DevHours { get { return Hours * (People.Count - 1); } }
-  }
-
   public class Highlight
   {
     public readonly Brush Brush;
@@ -362,51 +459,39 @@ namespace Illusion
     }
   }
 
-  public class Inspection
-  {
-    public DateTime Date;
-    public string Company;
-    public string Project;
-    public string Feature;
-    public Dictionary<string, double> People;
-
-    public int Findings;
-    public double DevHours;
-  }
-
   public class Stat
   {
     public readonly string Name;
-    readonly Func<IEnumerable<Block>, IEnumerable<Inspection>, object> ComputeInner;
+    readonly Func<Group, object> ComputeInner;
     public readonly string Format;
     public readonly Type Type;
 
-    public Stat(string name, Func<IEnumerable<Block>, IEnumerable<Inspection>, DateTime> compute)
+    public Stat(string name, Func<Group, DateTime> compute)
     {
       Name = name;
-      ComputeInner = (blocks, inspections) => compute(blocks, inspections);
+      ComputeInner = group => compute(group);
       Format = "M/d/yy";
       Type = typeof(DateTime);
     }
 
-    public Stat(string name, Func<IEnumerable<Block>, IEnumerable<Inspection>, double> compute)
+    public Stat(string name, Func<Group, double> compute)
     {
       Name = name;
-      ComputeInner = (blocks, inspections) => compute(blocks, inspections);
+      ComputeInner = group => compute(group);
       Format = "F2";
       Type = typeof(double);
     }
 
-    public Stat(string name, Func<IEnumerable<Block>, IEnumerable<Inspection>, int> compute)
+    public Stat(string name, Func<Group, int> compute)
     {
       Name = name;
-      ComputeInner = (blocks, inspections) => compute(blocks, inspections);
+      ComputeInner = group => compute(group);
       Type = typeof(int);
     }
 
-    public object Compute(IEnumerable<Block> blocks, IEnumerable<Inspection> inspections)
+    public object Compute(Group group)
     {
-      return ComputeInner(blocks, inspections);
+      return ComputeInner(group);
     }
   }
 
@@ -414,69 +499,98 @@ namespace Illusion
   {
     public List<Block> Blocks;
     public List<Inspection> Inspections;
+    public List<Income> Incomes;
     public string Name;
+    public double FilterWeeks;
 
-    public Group(string name)
+    public Group(string name, DateTime filterStart, DateTime filterStop)
     {
       Blocks = new List<Block>();
       Inspections = new List<Inspection>();
+      Incomes = new List<Income>();
       Name = name;
+      FilterWeeks = (filterStop - filterStart).TotalDays / 7.0;
     }
   }
 
   public class Grouper
   {
     public readonly string Name;
-    Func<Block, List<string>> GetBlockKeys;
-    Func<Inspection, List<string>> GetInspectionKeys;
+    Func<Categorizable, List<string>> GetKeys;
 
-    public Grouper(string name, Func<Block, string> getBlockKey, Func<Inspection, string> getInspectionKey)
+    public Grouper(string name, Func<Categorizable, string> getKey)
     {
       Name = name;
-      GetBlockKeys = b => new List<string> { getBlockKey(b) };
-      GetInspectionKeys = i => new List<string> { getInspectionKey(i) };
+      GetKeys = c => new List<string> { getKey(c) };
     }
 
-    public Grouper(string name, Func<Block, List<string>> getBlockKeys, Func<Inspection, List<string>> getInspectionKeys)
+    public Grouper(string name, Func<Categorizable, List<string>> getKeys)
     {
       Name = name;
-      GetBlockKeys = getBlockKeys;
-      GetInspectionKeys = getInspectionKeys;
+      GetKeys = getKeys;
     }
 
-    public List<Group> GetGroups(IEnumerable<Block> blocks, IEnumerable<Inspection> inspections)
+    public List<Group> GetGroups(IEnumerable<Block> blocks, IEnumerable<Inspection> inspections, IEnumerable<Income> incomes, DateTime filterStart, DateTime filterStop)
     {
       var dict = new Dictionary<string, Group>();
-      dict.Add("Total", new Group("Total")
+
+      Action<string> keyCheck = k =>
       {
-        Blocks = blocks.ToList(),
-        Inspections = inspections.ToList()
-      });
+        if (!dict.ContainsKey(k))
+        {
+          dict[k] = new Group(k, filterStart, filterStop);
+        }
+      };
 
       foreach (var block in blocks)
       {
-        foreach (var key in GetBlockKeys(block))
+        foreach (var key in GetKeys(block))
         {
-          if (!dict.ContainsKey(key))
+          if (key == null)
           {
-            dict[key] = new Group(key);
+            continue;
           }
+
+          keyCheck(key);
           dict[key].Blocks.Add(block);
         }
       }
 
       foreach (var inspection in inspections)
       {
-        foreach (var key in GetInspectionKeys(inspection))
+        foreach (var key in GetKeys(inspection))
         {
-          if (!dict.ContainsKey(key))
+          if (key == null)
           {
-            dict[key] = new Group(key);
+            continue;
           }
+
+          keyCheck(key);
           dict[key].Inspections.Add(inspection);
         }
       }
-      return dict.Values.ToList();
+
+      foreach (var income in incomes)
+      {
+        foreach (var key in GetKeys(income))
+        {
+          if (key == null)
+          {
+            continue;
+          }
+
+          keyCheck(key);
+          dict[key].Incomes.Add(income);
+        }
+      }
+
+      dict.Add("Total", new Group("Total", filterStart, filterStop)
+      {
+        Blocks = blocks.ToList(),
+        Inspections = inspections.ToList()
+      });
+
+      return dict.Values.Where(g => g.Blocks.Any()).ToList();
     }
 
     public override string ToString()
