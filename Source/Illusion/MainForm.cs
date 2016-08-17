@@ -44,7 +44,6 @@ namespace Illusion
 
     List<Stat> Overviews = new List<Stat>
     {
-      new Stat("Weeks",                           g => g.FilterWeeks                                                                  ),
       new Stat("Work Hours",                      g => g.Blocks.Where(b => IsWork(b)).Sum(b => b.Hours)                               ),
       new Stat("Food Hours",                      g => g.Blocks.Where(b => IsFood(b)).Sum(b => b.Hours)                               ),
       new Stat("PTO Hours",                       g => g.Blocks.Where(b => IsPTO(b)).Sum(b => b.Hours)                                ),
@@ -56,6 +55,7 @@ namespace Illusion
       new Stat("Income",                          g => g.Incomes.Sum(i => i.Amount)                                                   ),
       new Stat("Income / Work Hours",             g => g.Incomes.Sum(i => i.Amount) / g.Blocks.Where(b => IsWork(b)).Sum(b => b.Hours)),
       new Stat("Income / Total Hours",            g => g.Incomes.Sum(i => i.Amount) / g.Blocks.Sum(b => b.Hours)                      ),
+      new Stat("Weeks",                           g => g.FilterWeeks                                                                  ),
     };
 
     static List<Grouper> Groupers = new List<Grouper>
@@ -204,6 +204,42 @@ namespace Illusion
       IgnoreSetup = false;
     }
 
+    static void FindOverlaps(List<Block> blocks)
+    {
+      var allOverlaps = new List<Block>();
+      foreach (var block in blocks.Reverse<Block>())
+      {
+        var overlaps = blocks.Where(other => block != other && block.Start < other.Stop && other.Start < block.Stop).ToList();
+        if (overlaps.Any())
+        {
+          allOverlaps.AddRange(overlaps);
+        }
+      }
+
+      foreach (var date in allOverlaps.Select(o => o.Start.Date).Distinct())
+      {
+        Console.WriteLine(date);
+      }
+    }
+
+    static void FindMissingDays(int year, List<Block> blocks)
+    {
+      var start = new DateTime(year, 1, 1);
+      var stop = new DateTime(year + 1, 1, 1);
+      for (var date = start; date < stop && date < DateTime.Now.Date; date = date.AddDays(1))
+      {
+        if (date.DayOfWeek == DayOfWeek.Sunday || date.DayOfWeek == DayOfWeek.Saturday)
+        {
+          continue;
+        }
+        if (blocks.Any(b => b.Start.Date == date))
+        {
+          continue;
+        }
+        Console.WriteLine(date.ToString("M/d/yy"));
+      }
+    }
+
     void DisplayBlocks()
     {
       if (IgnoreSetup)
@@ -229,6 +265,7 @@ namespace Illusion
       if (!blocks.Any())
       {
         dgv_Stats.DataSource = null;
+        dgv_Overview.DataSource = null;
         pb_Visualization.Image = null;
         return;
       }
