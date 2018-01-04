@@ -39,6 +39,8 @@ namespace Illusion
       this.lbl_Time = new System.Windows.Forms.Label();
       this.tc = new System.Windows.Forms.TabControl();
       this.tpStats = new System.Windows.Forms.TabPage();
+      this.tp_Overview = new System.Windows.Forms.TabPage();
+      this.dgv_Overview = new System.Windows.Forms.DataGridView();
       this.tpVisualization = new System.Windows.Forms.TabPage();
       this.lbl_Visualization = new System.Windows.Forms.Label();
       this.pnl_Visualization = new System.Windows.Forms.Panel();
@@ -57,16 +59,15 @@ namespace Illusion
       this.iclb_Features = new Illusion.IllusionCheckedListBox();
       this.iclb_Projects = new Illusion.IllusionCheckedListBox();
       this.cb_IgnoreParenthesis = new System.Windows.Forms.CheckBox();
-      this.tp_Overview = new System.Windows.Forms.TabPage();
-      this.dgv_Overview = new System.Windows.Forms.DataGridView();
+      this.btn_Reload = new System.Windows.Forms.Button();
       ((System.ComponentModel.ISupportInitialize)(this.dgv_Stats)).BeginInit();
       this.tc.SuspendLayout();
       this.tpStats.SuspendLayout();
+      this.tp_Overview.SuspendLayout();
+      ((System.ComponentModel.ISupportInitialize)(this.dgv_Overview)).BeginInit();
       this.tpVisualization.SuspendLayout();
       this.pnl_Visualization.SuspendLayout();
       ((System.ComponentModel.ISupportInitialize)(this.pb_Visualization)).BeginInit();
-      this.tp_Overview.SuspendLayout();
-      ((System.ComponentModel.ISupportInitialize)(this.dgv_Overview)).BeginInit();
       this.SuspendLayout();
       // 
       // btn_Load
@@ -109,6 +110,7 @@ namespace Illusion
       this.dgv_Stats.RowHeadersVisible = false;
       this.dgv_Stats.Size = new System.Drawing.Size(446, 644);
       this.dgv_Stats.TabIndex = 4;
+      this.dgv_Stats.SortCompare += new System.Windows.Forms.DataGridViewSortCompareEventHandler(this.dgv_SortCompare);
       // 
       // dtp_Start
       // 
@@ -167,6 +169,48 @@ namespace Illusion
       this.tpStats.TabIndex = 0;
       this.tpStats.Text = "Stats";
       this.tpStats.UseVisualStyleBackColor = true;
+      // 
+      // tp_Overview
+      // 
+      this.tp_Overview.Controls.Add(this.dgv_Overview);
+      this.tp_Overview.Location = new System.Drawing.Point(4, 22);
+      this.tp_Overview.Name = "tp_Overview";
+      this.tp_Overview.Padding = new System.Windows.Forms.Padding(3);
+      this.tp_Overview.Size = new System.Drawing.Size(452, 650);
+      this.tp_Overview.TabIndex = 2;
+      this.tp_Overview.Text = "Overview";
+      this.tp_Overview.UseVisualStyleBackColor = true;
+      // 
+      // dgv_Overview
+      // 
+      this.dgv_Overview.AllowUserToAddRows = false;
+      this.dgv_Overview.AllowUserToDeleteRows = false;
+      this.dgv_Overview.AllowUserToResizeRows = false;
+      this.dgv_Overview.AutoSizeRowsMode = System.Windows.Forms.DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders;
+      dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleCenter;
+      dataGridViewCellStyle3.BackColor = System.Drawing.SystemColors.Control;
+      dataGridViewCellStyle3.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+      dataGridViewCellStyle3.ForeColor = System.Drawing.SystemColors.WindowText;
+      dataGridViewCellStyle3.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+      dataGridViewCellStyle3.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+      dataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
+      this.dgv_Overview.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle3;
+      this.dgv_Overview.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+      dataGridViewCellStyle4.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+      dataGridViewCellStyle4.BackColor = System.Drawing.SystemColors.Window;
+      dataGridViewCellStyle4.Font = new System.Drawing.Font("Calibri", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+      dataGridViewCellStyle4.ForeColor = System.Drawing.SystemColors.ControlText;
+      dataGridViewCellStyle4.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+      dataGridViewCellStyle4.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+      dataGridViewCellStyle4.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+      this.dgv_Overview.DefaultCellStyle = dataGridViewCellStyle4;
+      this.dgv_Overview.Dock = System.Windows.Forms.DockStyle.Fill;
+      this.dgv_Overview.Location = new System.Drawing.Point(3, 3);
+      this.dgv_Overview.Name = "dgv_Overview";
+      this.dgv_Overview.RowHeadersVisible = false;
+      this.dgv_Overview.Size = new System.Drawing.Size(446, 644);
+      this.dgv_Overview.TabIndex = 5;
+      this.dgv_Overview.SortCompare += new System.Windows.Forms.DataGridViewSortCompareEventHandler(this.dgv_SortCompare);
       // 
       // tpVisualization
       // 
@@ -352,52 +396,23 @@ namespace Illusion
       this.cb_IgnoreParenthesis.UseVisualStyleBackColor = true;
       this.cb_IgnoreParenthesis.CheckedChanged += new System.EventHandler(this.cb_IgnoreParenthesis_CheckedChanged);
       // 
-      // tp_Overview
+      // btn_Reload
       // 
-      this.tp_Overview.Controls.Add(this.dgv_Overview);
-      this.tp_Overview.Location = new System.Drawing.Point(4, 22);
-      this.tp_Overview.Name = "tp_Overview";
-      this.tp_Overview.Padding = new System.Windows.Forms.Padding(3);
-      this.tp_Overview.Size = new System.Drawing.Size(452, 650);
-      this.tp_Overview.TabIndex = 2;
-      this.tp_Overview.Text = "Overview";
-      this.tp_Overview.UseVisualStyleBackColor = true;
-      // 
-      // dgv_Overview
-      // 
-      this.dgv_Overview.AllowUserToAddRows = false;
-      this.dgv_Overview.AllowUserToDeleteRows = false;
-      this.dgv_Overview.AllowUserToResizeRows = false;
-      this.dgv_Overview.AutoSizeRowsMode = System.Windows.Forms.DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders;
-      dataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleCenter;
-      dataGridViewCellStyle3.BackColor = System.Drawing.SystemColors.Control;
-      dataGridViewCellStyle3.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-      dataGridViewCellStyle3.ForeColor = System.Drawing.SystemColors.WindowText;
-      dataGridViewCellStyle3.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-      dataGridViewCellStyle3.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-      dataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
-      this.dgv_Overview.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle3;
-      this.dgv_Overview.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-      dataGridViewCellStyle4.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-      dataGridViewCellStyle4.BackColor = System.Drawing.SystemColors.Window;
-      dataGridViewCellStyle4.Font = new System.Drawing.Font("Calibri", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-      dataGridViewCellStyle4.ForeColor = System.Drawing.SystemColors.ControlText;
-      dataGridViewCellStyle4.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-      dataGridViewCellStyle4.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-      dataGridViewCellStyle4.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-      this.dgv_Overview.DefaultCellStyle = dataGridViewCellStyle4;
-      this.dgv_Overview.Dock = System.Windows.Forms.DockStyle.Fill;
-      this.dgv_Overview.Location = new System.Drawing.Point(3, 3);
-      this.dgv_Overview.Name = "dgv_Overview";
-      this.dgv_Overview.RowHeadersVisible = false;
-      this.dgv_Overview.Size = new System.Drawing.Size(446, 644);
-      this.dgv_Overview.TabIndex = 5;
+      this.btn_Reload.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+      this.btn_Reload.Location = new System.Drawing.Point(796, 695);
+      this.btn_Reload.Name = "btn_Reload";
+      this.btn_Reload.Size = new System.Drawing.Size(65, 23);
+      this.btn_Reload.TabIndex = 21;
+      this.btn_Reload.Text = "Reload";
+      this.btn_Reload.UseVisualStyleBackColor = true;
+      this.btn_Reload.Click += new System.EventHandler(this.btn_Reload_Click);
       // 
       // MainForm
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.ClientSize = new System.Drawing.Size(944, 729);
+      this.Controls.Add(this.btn_Reload);
       this.Controls.Add(this.cb_IgnoreParenthesis);
       this.Controls.Add(this.lbl_Activities);
       this.Controls.Add(this.lbl_People);
@@ -424,12 +439,12 @@ namespace Illusion
       ((System.ComponentModel.ISupportInitialize)(this.dgv_Stats)).EndInit();
       this.tc.ResumeLayout(false);
       this.tpStats.ResumeLayout(false);
+      this.tp_Overview.ResumeLayout(false);
+      ((System.ComponentModel.ISupportInitialize)(this.dgv_Overview)).EndInit();
       this.tpVisualization.ResumeLayout(false);
       this.tpVisualization.PerformLayout();
       this.pnl_Visualization.ResumeLayout(false);
       ((System.ComponentModel.ISupportInitialize)(this.pb_Visualization)).EndInit();
-      this.tp_Overview.ResumeLayout(false);
-      ((System.ComponentModel.ISupportInitialize)(this.dgv_Overview)).EndInit();
       this.ResumeLayout(false);
       this.PerformLayout();
 
@@ -464,6 +479,7 @@ namespace Illusion
     private System.Windows.Forms.CheckBox cb_IgnoreParenthesis;
     private System.Windows.Forms.TabPage tp_Overview;
     private System.Windows.Forms.DataGridView dgv_Overview;
-  }
+        private System.Windows.Forms.Button btn_Reload;
+    }
 }
 

@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
 [assembly: AssemblyTitle("Illusion")]
@@ -31,8 +32,8 @@ namespace Illusion
 
     static List<Stat> Stats = new List<Stat>
     {
-      new Stat("Start",                           g => g.Blocks.Min(b => b.Start).Date                                        ),
-      new Stat("Stop",                            g => g.Blocks.Max(b => b.Stop).Date                                         ),
+      new Stat("Start",                           g => g.Blocks.Min(b => b.Date)                                              ),
+      new Stat("Stop",                            g => g.Blocks.Max(b => b.Date)                                              ),
       new Stat("Hours",                           g => g.Blocks.Sum(b => b.Hours)                                             ),
       new Stat("Dev Hours",                       g => g.Blocks.Sum(b => b.DevHours)                                          ),
       new Stat("Dev Hour Ratio",                  g => g.Blocks.Sum(b => b.DevHours) / g.Blocks.Sum(b => b.Hours)             ),
@@ -136,23 +137,40 @@ namespace Illusion
         var dateStr = row["Date"].ToString().Trim();
         var startStr = row["Start"].ToString().Trim();
         var stopStr = row["Stop"].ToString().Trim();
-        var start = DateTime.ParseExact(dateStr + " " + startStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
-        var stop = DateTime.ParseExact(dateStr + " " + stopStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
-        if (stop < start)
-          stop = stop.AddDays(1);
+
+        var date = DateTime.ParseExact(dateStr, "M/d/yy", CultureInfo.InvariantCulture);
+        var start = string.IsNullOrWhiteSpace(startStr) ? null : (DateTime?)DateTime.ParseExact(dateStr + " " + startStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
+        var stop = string.IsNullOrWhiteSpace(stopStr) ? null : (DateTime?)DateTime.ParseExact(dateStr + " " + stopStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
+        if (start.HasValue && stop.HasValue && stop < start)
+          stop = stop.Value.AddDays(1);
+
+        var people = row["People"].ToString().Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).Concat(new[] { "Self" }).ToList();
+
+        var hours = start.HasValue && stop.HasValue ? (stop.Value - start.Value).TotalHours : double.Parse(row["Hours"].ToString());
+        var devHours = hours * (people.Count - 1);
 
         AllBlocks.Add(new Block
         {
+          Date = date,
           Start = start,
           Stop = stop,
+          Hours = hours,
+          DevHours = devHours,
           Company = row["Company"].ToString().Trim(),
           Project = row["Project"].ToString().Trim(),
           Feature = row["Feature"].ToString().Trim(),
           Activity = row["Activity"].ToString().Trim(),
-          People = row["People"].ToString().Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).Concat(new[] { "Self" }).ToList()
+          People = people
         });
       }
-      AllBlocks.Sort((a, b) => a.Start.CompareTo(b.Start));
+      AllBlocks.Sort((a, b) =>
+      {
+        if (a.Start.HasValue && b.Start.HasValue)
+        {
+          return a.Start.Value.CompareTo(b.Start.Value);
+        }
+        return a.Date.CompareTo(b.Date);
+      });
 
       AllInspections.Clear();
       foreach (DataRow row in inspectionSheet.Rows)
@@ -181,7 +199,7 @@ namespace Illusion
       foreach (DataRow row in incomeSheet.Rows)
       {
         var amountStr = row["Amount"].ToString().Trim();
-        var amount = int.Parse(amountStr);
+        var amount = (int)Math.Round(double.Parse(amountStr));
 
         var checkDateStr = row["Check Date"].ToString();
         var startStr = row["Start"].ToString();
@@ -191,7 +209,7 @@ namespace Illusion
         {
           Amount = amount,
           Bonus = !string.IsNullOrWhiteSpace(row["Bonus"].ToString()),
-          CheckDate = string.IsNullOrWhiteSpace(checkDateStr) ? null : (DateTime?)DateTime.ParseExact(checkDateStr, "M/d/yy", CultureInfo.InvariantCulture),
+          CheckDate = string.IsNullOrWhiteSpace(checkDateStr) || checkDateStr == "?" ? null : (DateTime?)DateTime.ParseExact(checkDateStr, "M/d/yy", CultureInfo.InvariantCulture),
           Company = row["Company"].ToString().Trim(),
           Start = DateTime.ParseExact(startStr, "M/d/yy", CultureInfo.InvariantCulture),
           Stop = DateTime.ParseExact(stopStr, "M/d/yy", CultureInfo.InvariantCulture),
@@ -199,8 +217,8 @@ namespace Illusion
       }
 
       IgnoreSetup = true;
-      dtp_Start.Value = AllBlocks.Min(b => b.Start).Date;
-      dtp_Stop.Value = AllBlocks.Max(b => b.Stop).Date;
+      dtp_Start.Value = AllBlocks.Min(b => b.Date);
+      dtp_Stop.Value = AllBlocks.Max(b => b.Date);
       IgnoreSetup = false;
     }
 
@@ -209,14 +227,14 @@ namespace Illusion
       var allOverlaps = new List<Block>();
       foreach (var block in blocks.Reverse<Block>())
       {
-        var overlaps = blocks.Where(other => block != other && block.Start < other.Stop && other.Start < block.Stop).ToList();
+        var overlaps = blocks.Where(other => block.Start.HasValue && other.Start.HasValue && block != other && block.Start < other.Stop && other.Start < block.Stop).ToList();
         if (overlaps.Any())
         {
           allOverlaps.AddRange(overlaps);
         }
       }
 
-      foreach (var date in allOverlaps.Select(o => o.Start.Date).Distinct())
+      foreach (var date in allOverlaps.Select(o => o.Date).Distinct())
       {
         Console.WriteLine(date);
       }
@@ -232,7 +250,7 @@ namespace Illusion
         {
           continue;
         }
-        if (blocks.Any(b => b.Start.Date == date))
+        if (blocks.Any(b => b.Date == date))
         {
           continue;
         }
@@ -247,12 +265,12 @@ namespace Illusion
         return;
       }
 
-      var blocks = AllBlocks.Where(b => b.Start.Date >= dtp_Start.Value && b.Stop.Date <= dtp_Stop.Value).ToList();
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => new [] { b.Company  }, iclb_Companies);
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => new [] { b.Project  }, iclb_Projects);
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => new [] { b.Feature  }, iclb_Features);
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => new [] { b.Activity }, iclb_Activities);
-      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.People,              iclb_People);
+      var blocks = AllBlocks.Where(b => b.Date >= dtp_Start.Value && b.Date <= dtp_Stop.Value).ToList();
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => new[] { b.Company }, iclb_Companies);
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => new[] { b.Project }, iclb_Projects);
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => new[] { b.Feature }, iclb_Features);
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => new[] { b.Activity }, iclb_Activities);
+      blocks = UpdateListBoxAndFilterBlocks(blocks, b => b.People, iclb_People);
 
       var inspections = AllInspections.Where(i => i.Date >= dtp_Start.Value.Date && i.Date <= dtp_Stop.Value).ToList();
       inspections = Filter(inspections, i => new[] { i.Company }, iclb_Companies);
@@ -264,19 +282,19 @@ namespace Illusion
 
       if (!blocks.Any())
       {
-        dgv_Stats.DataSource = null;
-        dgv_Overview.DataSource = null;
+        dgv_Stats.Columns.Clear();
+        dgv_Overview.Columns.Clear();
         pb_Visualization.Image = null;
         return;
       }
 
       // Display stats and overview.
-      var groups = ((Grouper)cb_Grouping.SelectedItem).GetGroups(blocks, inspections, incomes, dtp_Start.Value, dtp_Stop.Value);
+      var groups = ((Grouper)cb_Grouping.SelectedItem).GetGroups(blocks, inspections, incomes, dtp_Start.Value, dtp_Stop.Value, cb_IgnoreParenthesis.Checked);
       DisplayStats("Stats", dgv_Stats, groups, Stats);
       DisplayStats("Overview", dgv_Overview, groups, Overviews);
 
       // Generate Visualization
-      var bmp = new Bitmap(24 * 4, (int)Math.Ceiling((dtp_Stop.Value - dtp_Start.Value).TotalDays));
+      var bmp = new Bitmap(24 * 4, Math.Max(1, (int)Math.Ceiling((dtp_Stop.Value - dtp_Start.Value).TotalDays)));
 
       using (var g = Graphics.FromImage(bmp))
       {
@@ -284,13 +302,20 @@ namespace Illusion
 
         foreach (var block in blocks)
         {
-          int yStart = (block.Start - dtp_Start.Value).Days;
-          int yStop = (block.Stop - dtp_Start.Value).Days;
+          if (!block.Start.HasValue || !block.Stop.HasValue)
+          {
+            continue;
+          }
+          var start = block.Start.Value;
+          var stop = block.Stop.Value;
+
+          int yStart = (start - dtp_Start.Value).Days;
+          int yStop = (stop - dtp_Start.Value).Days;
 
           for (int y = yStart; y <= yStop; y++)
           {
-            int xStart = y == yStart ? (block.Start.Hour * 4) + (block.Start.Minute / 15) : 0;
-            int xStop = y == yStop ? (block.Stop.Hour * 4) + (block.Stop.Minute / 15) : bmp.Width - 1;
+            int xStart = y == yStart ? (start.Hour * 4) + (start.Minute / 15) : 0;
+            int xStop = y == yStop ? (stop.Hour * 4) + (stop.Minute / 15) : bmp.Width - 1;
 
             var brush = iclb_Companies.GetHighlight(new[] { block.Company }) ??
                         iclb_Projects.GetHighlight(new[] { block.Project }) ??
@@ -302,6 +327,9 @@ namespace Illusion
             g.FillRectangle(brush, new Rectangle(xStart, y, (xStop - xStart) + 1, 1));
           }
         }
+        
+        // TODO: Save Button
+        // bmp.Save("C:\\Users\\Ry\\Desktop\\bob.bmp", System.Drawing.Imaging.ImageFormat.Bmp);
       }
 
       // Display Visualization
@@ -333,7 +361,7 @@ namespace Illusion
         Start = income.Start,
         Stop = income.Stop
       };
-      
+
       if (income.Start < start)
       {
         ret.Start = start;
@@ -342,40 +370,45 @@ namespace Illusion
       {
         ret.Stop = stop;
       }
-      ret.Amount = (int)Math.Round(((double)ret.Amount) * ((income.Hours - ret.Hours)/income.Hours));
+      ret.Amount = (int)Math.Round(((double)ret.Amount) * ((income.Hours - ret.Hours) / income.Hours));
 
       return ret;
     }
 
     static void DisplayStats(string name, DataGridView dgv, List<Group> groups, List<Stat> stats)
     {
-      var dt = new DataTable("Stats");
-      dt.Columns.Add("Group", typeof(string));
+      dgv.Columns.Clear();
+      dgv.Rows.Clear();
 
+      dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Group", ValueType = typeof(string) });
       foreach (var stat in stats)
       {
-        dt.Columns.Add(stat.Name, stat.Type);
+        var col = new DataGridViewTextBoxColumn
+        {
+          Name = stat.Name,
+          SortMode = DataGridViewColumnSortMode.Automatic,
+          ValueType = stat.Type
+        };
+        col.DefaultCellStyle.Format = stat.Format;
+        dgv.Columns.Add(col);
       }
 
       foreach (var group in groups)
       {
-        var row = dt.NewRow();
-        row["Group"] = group.Name;
+        var row = dgv.Rows[dgv.Rows.Add()];
+        row.Cells["Group"].Value = group.Name;
         foreach (var stat in stats)
         {
-          row[stat.Name] = stat.Compute(group);
+          row.Cells[stat.Name].Value = stat.Compute(group);
         }
-        dt.Rows.Add(row);
+
+        if (group.Name == "Total")
+        {
+          row.DefaultCellStyle.Font = new Font(dgv.DefaultCellStyle.Font, FontStyle.Bold);
+        }
       }
 
       dgv.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-      dgv.DataSource = dt;
-
-      foreach (var stat in stats)
-      {
-        dgv.Columns[stat.Name].DefaultCellStyle.Format = stat.Format;
-      }
-
       dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders;
       dgv.AutoResizeColumns();
     }
@@ -443,15 +476,31 @@ namespace Illusion
       Settings.Default.Save();
     }
 
+    void btn_Reload_Click(object sender, EventArgs e)
+    {
+      var lastPath = Settings.Default.LastPath;
+      if (File.Exists(lastPath))
+      {
+        LoadBlocks(lastPath);
+        DisplayBlocks();
+      }
+    }
+
     void cb_Grouping_SelectedIndexChanged(object sender, EventArgs e) { DisplayBlocks(); }
 
-    void cb_IgnoreParenthesis_CheckedChanged(object sender, EventArgs e)
-    {
-      foreach (var block in AllBlocks)
-      {
+    void cb_IgnoreParenthesis_CheckedChanged(object sender, EventArgs e) { DisplayBlocks(); }
 
+    void dgv_SortCompare(object sender, DataGridViewSortCompareEventArgs e)
+    {
+      var dgv = (DataGridView)sender;
+      if (e.RowIndex1 == dgv.Rows.Count - 1)
+      {
+        e.Handled = true;
       }
-      DisplayBlocks();
+      if (e.RowIndex2 == dgv.Rows.Count - 1)
+      {
+        e.Handled = true;
+      }
     }
 
     void dtp_Start_ValueChanged(object sender, EventArgs e) { DisplayBlocks(); }
@@ -567,56 +616,46 @@ namespace Illusion
       GetKeys = getKeys;
     }
 
-    public List<Group> GetGroups(IEnumerable<Block> blocks, IEnumerable<Inspection> inspections, IEnumerable<Income> incomes, DateTime filterStart, DateTime filterStop)
+    public List<Group> GetGroups(IEnumerable<Block> blocks, IEnumerable<Inspection> inspections, IEnumerable<Income> incomes, DateTime filterStart, DateTime filterStop, bool ignoreParenthesis)
     {
       var dict = new Dictionary<string, Group>();
 
-      Action<string> keyCheck = k =>
+      Func<Categorizable, List<string>> getKeys = item =>
       {
-        if (!dict.ContainsKey(k))
+        var keys = GetKeys(item).Where(k => !string.IsNullOrWhiteSpace(k)).ToList();
+        if (ignoreParenthesis)
         {
-          dict[k] = new Group(k, filterStart, filterStop);
+          keys = keys.Select(k => Regex.Replace(k, @" ?\(.*?\)", string.Empty).Trim()).ToList();
         }
+
+        foreach (var newKey in keys.Where(k => !dict.ContainsKey(k)))
+        {
+          dict[newKey] = new Group(newKey, filterStart, filterStop);
+        }
+
+        return keys;
       };
 
       foreach (var block in blocks)
       {
-        foreach (var key in GetKeys(block))
+        foreach (var key in getKeys(block))
         {
-          if (key == null)
-          {
-            continue;
-          }
-
-          keyCheck(key);
           dict[key].Blocks.Add(block);
         }
       }
 
       foreach (var inspection in inspections)
       {
-        foreach (var key in GetKeys(inspection))
+        foreach (var key in getKeys(inspection))
         {
-          if (key == null)
-          {
-            continue;
-          }
-
-          keyCheck(key);
           dict[key].Inspections.Add(inspection);
         }
       }
 
       foreach (var income in incomes)
       {
-        foreach (var key in GetKeys(income))
+        foreach (var key in getKeys(income))
         {
-          if (key == null)
-          {
-            continue;
-          }
-
-          keyCheck(key);
           dict[key].Incomes.Add(income);
         }
       }
