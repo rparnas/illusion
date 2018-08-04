@@ -20,6 +20,14 @@ namespace Illusion
 {
   public partial class MainForm : Form
   {
+    public static HashSet<string> StandardCompanies = new HashSet<string> { "BA", "BCI", "PL", "RP" };
+    public static HashSet<string> StandardProjects = new HashSet<string> { "Admin", "Enrichment", "Misc" };
+    public static HashSet<string> AdminTasks = new HashSet<string> { "Business", "1-on-1", "Cascade", "Celebration", "Engagement", "Jobs", "Marketing", "Management", "Metrics", "Performance", "Recruitment", "Training" };
+    public static HashSet<string> EnrichmentTasks = new HashSet<string> { "Talks", "Talk Prep", "Workshops" };
+    public static HashSet<string> MiscTasks = new HashSet<string> { "Bad", "Chitchat", "Food", "Good", "Neutral", "PTO", "Sick" };
+    public static HashSet<string> Czars = new HashSet<string> { "Bug", "Config", "Support", "Tech", "Test", "UI" };
+    public static HashSet<string> StandardFeatures = new HashSet<string> { "Meeting", "Planning", "Process" };
+
     public static List<Highlight> Highlights = new List<Highlight>
     {
       new Highlight("Red",    196, 2, 51),
@@ -112,7 +120,7 @@ namespace Illusion
       var lastPath = Settings.Default.LastPath;
       if (File.Exists(lastPath))
       {
-        LoadBlocks(lastPath);
+        LoadBlocks(lastPath, null, null);
         DisplayBlocks();
       }
 
@@ -123,7 +131,7 @@ namespace Illusion
       }
     }
 
-    void LoadBlocks(string path)
+    void LoadBlocks(string path, DateTime? dtpStart, DateTime? dtpStop)
     {
       var timeSheet = Loader.GetXLSX(path, "Time Sheet");
       var inspectionSheet = Loader.GetXLSX(path, "Inspections");
@@ -137,6 +145,13 @@ namespace Illusion
         var dateStr = row["Date"].ToString().Trim();
         var startStr = row["Start"].ToString().Trim();
         var stopStr = row["Stop"].ToString().Trim();
+        var hourStr = row["Hours"].ToString().Trim();
+
+        // Skip any ongoing entries
+        if (!string.IsNullOrEmpty(dateStr) && !string.IsNullOrEmpty(startStr) && string.IsNullOrEmpty(stopStr))
+        {
+          continue;
+        }
 
         var date = DateTime.ParseExact(dateStr, "M/d/yy", CultureInfo.InvariantCulture);
         var start = string.IsNullOrWhiteSpace(startStr) ? null : (DateTime?)DateTime.ParseExact(dateStr + " " + startStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
@@ -146,7 +161,7 @@ namespace Illusion
 
         var people = row["People"].ToString().Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).Concat(new[] { "Self" }).ToList();
 
-        var hours = start.HasValue && stop.HasValue ? (stop.Value - start.Value).TotalHours : double.Parse(row["Hours"].ToString());
+        var hours = start.HasValue && stop.HasValue ? (stop.Value - start.Value).TotalHours : double.Parse(hourStr);
         var devHours = hours * (people.Count - 1);
 
         AllBlocks.Add(new Block
@@ -163,6 +178,7 @@ namespace Illusion
           People = people
         });
       }
+
       AllBlocks.Sort((a, b) =>
       {
         if (a.Start.HasValue && b.Start.HasValue)
@@ -171,6 +187,42 @@ namespace Illusion
         }
         return a.Date.CompareTo(b.Date);
       });
+
+      foreach (var block in AllBlocks)
+      {
+        if (StandardCompanies.Contains(block.Company))
+        {
+          block.Company = "<" + block.Company + ">";
+
+          if (StandardProjects.Contains(block.Project))
+          {
+            block.Project = "<" + block.Project + ">";
+
+            if (AdminTasks.Contains(block.Feature) || EnrichmentTasks.Contains(block.Feature) || MiscTasks.Contains(block.Feature))
+            {
+              block.Feature = "<" + block.Feature + ">";
+            }
+          }
+          else
+          {
+            if (block.Feature.Contains("Czar") && Czars.Contains(block.Feature.Split(new[] { "Czar (", ")" }, StringSplitOptions.RemoveEmptyEntries).First()))
+            {
+              block.Feature = "<" + block.Feature + ">";
+              block.Activity = "";
+            }
+            else if (StandardFeatures.Contains(block.Feature))
+            {
+              block.Feature = "<" + block.Feature + ">";
+              block.Activity = "";
+            }
+          }
+        }
+
+        if (block.Hours > 8 && block.Start.HasValue)
+        {
+          Console.WriteLine(block.Start.Value.Date);
+        }
+      }
 
       AllInspections.Clear();
       foreach (DataRow row in inspectionSheet.Rows)
@@ -199,7 +251,7 @@ namespace Illusion
       foreach (DataRow row in incomeSheet.Rows)
       {
         var amountStr = row["Amount"].ToString().Trim();
-        var amount = (int)Math.Round(double.Parse(amountStr));
+        var amount = string.IsNullOrWhiteSpace(amountStr) ? 0 : (int)Math.Round(double.Parse(amountStr));
 
         var checkDateStr = row["Check Date"].ToString();
         var startStr = row["Start"].ToString();
@@ -217,8 +269,8 @@ namespace Illusion
       }
 
       IgnoreSetup = true;
-      dtp_Start.Value = AllBlocks.Min(b => b.Date);
-      dtp_Stop.Value = AllBlocks.Max(b => b.Date);
+      dtp_Start.Value =  dtpStart ?? AllBlocks.Min(b => b.Date);
+      dtp_Stop.Value = dtpStop ?? AllBlocks.Max(b => b.Date);
       IgnoreSetup = false;
     }
 
@@ -469,7 +521,7 @@ namespace Illusion
       {
         return;
       }
-      LoadBlocks(ofd.FileName);
+      LoadBlocks(ofd.FileName, null, null);
       DisplayBlocks();
 
       Settings.Default.LastPath = ofd.FileName;
@@ -479,11 +531,13 @@ namespace Illusion
     void btn_Reload_Click(object sender, EventArgs e)
     {
       var lastPath = Settings.Default.LastPath;
-      if (File.Exists(lastPath))
+      if (!File.Exists(lastPath))
       {
-        LoadBlocks(lastPath);
-        DisplayBlocks();
+        return;
       }
+
+      LoadBlocks(lastPath, dtp_Start.Value, dtp_Stop.Value);
+      DisplayBlocks();
     }
 
     void cb_Grouping_SelectedIndexChanged(object sender, EventArgs e) { DisplayBlocks(); }

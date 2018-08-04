@@ -1,0 +1,62 @@
+digraph 
+{
+
+	node [shape=record];
+
+	subgraph cluster_Admin
+	{
+		Business -> Admin;
+		OneOnOne [label="1-on-1"];
+		OneOnOne -> Admin;
+		Cascade -> Admin;
+		Celebration -> Admin;
+		Engagement -> Admin;
+		Jobs -> Admin;
+		Marketing -> Admin;
+		Management -> Admin;
+		Metrics -> Admin;
+		Performance -> Admin;
+		Recruitment -> Admin;
+		Training -> Admin;
+	}
+
+	subgraph cluster_Enrichment
+	{
+		Enrichment;
+		Study -> Enrichment;
+		Talks -> Enrichment;
+		TalkPrep [label="Talk Prep"];
+		TalkPrep -> Enrichment;
+		Workshops -> Enrichment;
+    }
+
+    subgraph cluster_Misc
+    {
+		Bad -> Misc;
+		Chitchat -> Misc;
+		Food -> Misc;
+		Good -> Misc;
+		Neutral -> Misc;
+		PTO -> Misc;
+		Sick -> Misc;
+	}
+
+	subgraph cluster_software
+	{
+		Development -> Software;
+		Non_Development [label="Non-Development"];
+		Non_Development -> Software;
+
+		// Non-Development
+		Czars -> Non_Development;
+		Meeting -> Non_Development;
+		Planning -> Non_Development;
+		Process -> Non_Development;
+		Bug -> Czars;
+		Config -> Czars;
+		Support -> Czars;
+		Tech -> Czars;
+		Test -> Czars;
+		UI -> Czars;
+	}
+}
