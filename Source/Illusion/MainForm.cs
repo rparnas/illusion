@@ -76,6 +76,18 @@ namespace Illusion
       new Grouper("People",   c => c.People)
     };
 
+    static List<TimeFilter> TimeFilters = new List<TimeFilter>
+    {
+      new TimeFilter("This Week", () => DateTime.Now.RoundWeekDown(DayOfWeek.Sunday),
+                                  () => DateTime.Now.RoundWeekDown(DayOfWeek.Sunday).AddDays(6)),
+      new TimeFilter("Last Week", () => DateTime.Now.RoundWeekDown(DayOfWeek.Sunday).AddDays(-7),
+                                  () => DateTime.Now.RoundWeekDown(DayOfWeek.Sunday).AddDays(-1)),
+      new TimeFilter("This Month", () => DateTime.Now.RoundMonthDown(), 
+                                   () => DateTime.Now.RoundMonthDown().AddMonths(1).AddDays(-1)),
+      new TimeFilter("Last Month", () => DateTime.Now.RoundMonthDown().AddMonths(-1), 
+                                   () => DateTime.Now.RoundMonthDown().AddDays(-1))
+    };
+
     static bool IsWork(Block b)
     {
       return !IsFood(b) && !IsPTO(b);
@@ -116,6 +128,9 @@ namespace Illusion
       InitializeComponent();
       cb_Grouping.DataSource = Groupers;
       cb_Grouping.SelectedItem = Groupers.First(g => g.Name == "Feature");
+
+      cb_Time.DataSource = TimeFilters;
+      cb_Time.SelectedItem = null;
 
       var lastPath = Settings.Default.LastPath;
       if (File.Exists(lastPath))
@@ -544,6 +559,15 @@ namespace Illusion
 
     void cb_IgnoreParenthesis_CheckedChanged(object sender, EventArgs e) { DisplayBlocks(); }
 
+    void cb_Time_SelectionChangeCommitted(object sender, EventArgs e)
+    {
+      var timeFilter = (TimeFilter)cb_Time.SelectedItem;
+
+      cb_Time.SelectedItem = null;
+      dtp_Start.Value = timeFilter.GetStart();
+      dtp_Stop.Value = timeFilter.GetStop();
+    }
+
     void dgv_SortCompare(object sender, DataGridViewSortCompareEventArgs e)
     {
       var dgv = (DataGridView)sender;
@@ -727,5 +751,21 @@ namespace Illusion
     {
       return Name;
     }
+  }
+
+  public class TimeFilter
+  {
+    public readonly string Name;
+    public readonly Func<DateTime> GetStart;
+    public readonly Func<DateTime> GetStop;
+
+    public TimeFilter(string name, Func<DateTime> getStart, Func<DateTime> getStop)
+    {
+      GetStart = getStart;
+      GetStop = getStop;
+      Name = name;
+    }
+
+    public override string ToString() => Name;
   }
 }

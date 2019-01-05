@@ -47,6 +47,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DateTimeUtils.cs" />
     <Compile Include="IllusionCheckedListBox.cs">
       <SubType>Component</SubType>
     </Compile>
