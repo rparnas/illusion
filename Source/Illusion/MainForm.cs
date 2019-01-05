@@ -116,6 +116,7 @@ namespace Illusion
     List<Block> AllBlocks;
     List<Inspection> AllInspections;
     List<Income> AllIncomes;
+    List<DailyStat> DailyStats;
     bool IgnoreSetup;
 
     public MainForm()
@@ -123,6 +124,7 @@ namespace Illusion
       AllBlocks = new List<Block>();
       AllInspections = new List<Inspection>();
       AllIncomes = new List<Income>();
+      DailyStats = new List<DailyStat>();
       IgnoreSetup = true;
 
       InitializeComponent();
@@ -151,6 +153,7 @@ namespace Illusion
       var timeSheet = Loader.GetXLSX(path, "Time Sheet");
       var inspectionSheet = Loader.GetXLSX(path, "Inspections");
       var incomeSheet = Loader.GetXLSX(path, "Income");
+      var dailyStatsSheet = Loader.GetXLSX(path, "Daily Stats");
       if (timeSheet == null || inspectionSheet == null || incomeSheet == null)
         return;
 
@@ -283,6 +286,21 @@ namespace Illusion
         });
       }
 
+      DailyStats.Clear();
+      foreach (DataRow row in dailyStatsSheet.Rows)
+      {
+        var dateStr = row["Date"].ToString();
+        var wakeStr = row["Wake"].ToString();
+        if (new[] { dateStr, wakeStr }.Any(s => string.IsNullOrWhiteSpace(s)))
+        {
+          continue;
+        }
+
+        var date = DateTime.ParseExact(dateStr, "M/d/yy", CultureInfo.InvariantCulture);
+        var wake = DateTime.ParseExact(dateStr + " " + wakeStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
+        DailyStats.Add(new DailyStat(date, wake));
+      }
+
       IgnoreSetup = true;
       dtp_Start.Value =  dtpStart ?? AllBlocks.Min(b => b.Date);
       dtp_Stop.Value = dtpStop ?? AllBlocks.Max(b => b.Date);
@@ -346,6 +364,16 @@ namespace Illusion
 
       var incomes = AllIncomes.Select(i => Chop(i, dtp_Start.Value, dtp_Stop.Value)).Where(i => i != null).ToList();
       incomes = Filter(incomes, i => new[] { i.Company }, iclb_Companies);
+
+      var dailyStats = DailyStats.Where(b => b.Date >= dtp_Start.Value && b.Date <= dtp_Stop.Value).ToList();
+      if (dailyStats.Any())
+      {
+        Console.WriteLine("Average Wake: " + dailyStats.Average(s => s.Wake.Hour + s.Wake.Minute / 60));
+      }
+      else
+      {
+        Console.WriteLine("Average Wake: N/A");
+      }
 
       if (!blocks.Any())
       {
@@ -767,5 +795,17 @@ namespace Illusion
     }
 
     public override string ToString() => Name;
+  }
+
+  public class DailyStat
+  {
+    public readonly DateTime Date;
+    public readonly DateTime Wake;
+
+    public DailyStat(DateTime date, DateTime wake)
+    {
+      Date = date;
+      Wake = wake;
+    }
   }
 }
