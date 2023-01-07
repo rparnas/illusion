@@ -1,4 +1,3 @@
-using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -20,13 +19,41 @@ namespace Illusion
 {
   public partial class MainForm : Form
   {
-    public static HashSet<string> StandardCompanies = new HashSet<string> { "BA", "BCI", "PL", "RP" };
-    public static HashSet<string> StandardProjects = new HashSet<string> { "Admin", "Enrichment", "Misc" };
-    public static HashSet<string> AdminTasks = new HashSet<string> { "Business", "1-on-1", "Cascade", "Celebration", "Engagement", "Jobs", "Marketing", "Management", "Metrics", "Performance", "Recruitment", "Training" };
-    public static HashSet<string> EnrichmentTasks = new HashSet<string> { "Talks", "Talk Prep", "Workshops" };
-    public static HashSet<string> MiscTasks = new HashSet<string> { "Bad", "Chitchat", "Food", "Good", "Neutral", "PTO", "Sick" };
-    public static HashSet<string> Czars = new HashSet<string> { "Bug", "Config", "Support", "Tech", "Test", "UI" };
-    public static HashSet<string> StandardFeatures = new HashSet<string> { "Meeting", "Planning", "Process" };
+    public static Dictionary<string, HashSet<string>> NonProjects = new Dictionary<string, HashSet<string>>
+    {
+      { "Admin", new HashSet<string> { "1-on-1", "Business", "Cascade", "Celebration", "Management", "Marketing", "Metrics", "Performance", "Recruitment", "Training" } },
+      { "Enrichment", new HashSet<string> { "Talks", "Talk Prep", "Socializing", "Workshops" } },
+      { "Misc", new HashSet<string> { "Chitchat", "Food", "PTO" } }
+    };
+
+    public static HashSet<string> DevelopmentActivities = new HashSet<string>
+    {
+      "Code",
+      "Code (Build)",
+      "Code (Fixes)",
+      "Code (Review)",
+      "Design",
+      "Design (Fixes)",
+      "Design (Review)",
+      "Discussion",
+      "Investigation",
+      "Reqs",
+      "Research",
+      "Study",
+      "Test (Ad-hoc)",
+      "Test (Automated)",
+      "Test (Manual)",
+      "Test (Manual Execution)",
+      "VOC",
+    };
+
+    public static HashSet<string> NondevelopmentActivities = new HashSet<string>
+    {
+      "Config",
+      "Deployment",
+      "Meeting",
+      "Support",
+    };
 
     public static List<Highlight> Highlights = new List<Highlight>
     {
@@ -116,7 +143,6 @@ namespace Illusion
     List<Block> AllBlocks;
     List<Inspection> AllInspections;
     List<Income> AllIncomes;
-    List<DailyStat> DailyStats;
     bool IgnoreSetup;
 
     public MainForm()
@@ -124,7 +150,6 @@ namespace Illusion
       AllBlocks = new List<Block>();
       AllInspections = new List<Inspection>();
       AllIncomes = new List<Income>();
-      DailyStats = new List<DailyStat>();
       IgnoreSetup = true;
 
       InitializeComponent();
@@ -146,6 +171,35 @@ namespace Illusion
       {
         allLists[i].Forward = allLists.Skip(i + 1).ToList();
       }
+
+      var table = new DataTable();
+      table.Columns.Add("Start");
+      table.Columns.Add("Stop");
+      table.Columns.Add("Duration");
+      table.Columns.Add("Raw");
+      foreach (var block in AllBlocks)
+      {
+        if (block.Start == null)
+        {
+          continue;
+        }
+        if (block.Start.Value < new DateTime(2021, 12, 1))
+        {
+          continue;
+        }
+        if (block.Company != "?")
+        {
+          continue;
+        }
+
+        var row = table.NewRow();
+        row["Start"] = block.Start.Value.ToString("MM/dd/YY");
+        row["Stop"] = block.Stop.Value.ToString("MM/dd/YY");
+        row["Duration"] = block.Hours.ToString();
+        row["Raw"] = block.Raw;
+
+        table.Rows.Add(row);
+      }
     }
 
     void LoadBlocks(string path, DateTime? dtpStart, DateTime? dtpStop)
@@ -158,7 +212,7 @@ namespace Illusion
         return;
 
       AllBlocks.Clear();
-      foreach (DataRow row in timeSheet.Rows)
+      foreach (var row in timeSheet.Rows.Cast<DataRow>())
       {
         var dateStr = row["Date"].ToString().Trim();
         var startStr = row["Start"].ToString().Trim();
@@ -175,14 +229,24 @@ namespace Illusion
         var start = string.IsNullOrWhiteSpace(startStr) ? null : (DateTime?)DateTime.ParseExact(dateStr + " " + startStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
         var stop = string.IsNullOrWhiteSpace(stopStr) ? null : (DateTime?)DateTime.ParseExact(dateStr + " " + stopStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
         if (start.HasValue && stop.HasValue && stop < start)
+        {
           stop = stop.Value.AddDays(1);
+        }
 
-        var people = row["People"].ToString().Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()).Concat(new[] { "Self" }).ToList();
+        var people = new[] { "<Self>" }
+          .Concat(row["People"].ToString().Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries).Select(p => p.Trim()))
+          .Select(initials => initials == "Unspecified" ? "<Unspecified>" : initials)
+          .ToList();
+
+        if (!start.HasValue && !stop.HasValue && string.IsNullOrWhiteSpace(hourStr))
+        {
+          continue;
+        }
 
         var hours = start.HasValue && stop.HasValue ? (stop.Value - start.Value).TotalHours : double.Parse(hourStr);
         var devHours = hours * (people.Count - 1);
 
-        AllBlocks.Add(new Block
+        var block = new Block
         {
           Date = date,
           Start = start,
@@ -193,8 +257,13 @@ namespace Illusion
           Project = row["Project"].ToString().Trim(),
           Feature = row["Feature"].ToString().Trim(),
           Activity = row["Activity"].ToString().Trim(),
-          People = people
-        });
+          People = people,
+          Raw = row["Raw"].ToString().Trim()
+        };
+
+        FormatCategory(block);
+
+        AllBlocks.Add(block);
       }
 
       AllBlocks.Sort((a, b) =>
@@ -205,42 +274,6 @@ namespace Illusion
         }
         return a.Date.CompareTo(b.Date);
       });
-
-      foreach (var block in AllBlocks)
-      {
-        if (StandardCompanies.Contains(block.Company))
-        {
-          block.Company = "<" + block.Company + ">";
-
-          if (StandardProjects.Contains(block.Project))
-          {
-            block.Project = "<" + block.Project + ">";
-
-            if (AdminTasks.Contains(block.Feature) || EnrichmentTasks.Contains(block.Feature) || MiscTasks.Contains(block.Feature))
-            {
-              block.Feature = "<" + block.Feature + ">";
-            }
-          }
-          else
-          {
-            if (block.Feature.Contains("Czar") && Czars.Contains(block.Feature.Split(new[] { "Czar (", ")" }, StringSplitOptions.RemoveEmptyEntries).First()))
-            {
-              block.Feature = "<" + block.Feature + ">";
-              block.Activity = "";
-            }
-            else if (StandardFeatures.Contains(block.Feature))
-            {
-              block.Feature = "<" + block.Feature + ">";
-              block.Activity = "";
-            }
-          }
-        }
-
-        if (block.Hours > 8 && block.Start.HasValue)
-        {
-          Console.WriteLine(block.Start.Value.Date);
-        }
-      }
 
       AllInspections.Clear();
       foreach (DataRow row in inspectionSheet.Rows)
@@ -269,36 +302,19 @@ namespace Illusion
       foreach (DataRow row in incomeSheet.Rows)
       {
         var amountStr = row["Amount"].ToString().Trim();
-        var amount = string.IsNullOrWhiteSpace(amountStr) ? 0 : (int)Math.Round(double.Parse(amountStr));
-
-        var checkDateStr = row["Check Date"].ToString();
+        var amount = double.TryParse(amountStr, out double doubleAmount) ? (int)Math.Round(doubleAmount) : 0;
+        var paidStr = row["Date Paid"].ToString();
         var startStr = row["Start"].ToString();
         var stopStr = row["Stop"].ToString();
 
         AllIncomes.Add(new Income
         {
           Amount = amount,
-          Bonus = !string.IsNullOrWhiteSpace(row["Bonus"].ToString()),
-          CheckDate = string.IsNullOrWhiteSpace(checkDateStr) || checkDateStr == "?" ? null : (DateTime?)DateTime.ParseExact(checkDateStr, "M/d/yy", CultureInfo.InvariantCulture),
+          Paid = string.IsNullOrWhiteSpace(paidStr) || paidStr == "?" ? null : (DateTime?)DateTime.ParseExact(paidStr, "M/d/yy", CultureInfo.InvariantCulture),
           Company = row["Company"].ToString().Trim(),
           Start = DateTime.ParseExact(startStr, "M/d/yy", CultureInfo.InvariantCulture),
           Stop = DateTime.ParseExact(stopStr, "M/d/yy", CultureInfo.InvariantCulture),
         });
-      }
-
-      DailyStats.Clear();
-      foreach (DataRow row in dailyStatsSheet.Rows)
-      {
-        var dateStr = row["Date"].ToString();
-        var wakeStr = row["Wake"].ToString();
-        if (new[] { dateStr, wakeStr }.Any(s => string.IsNullOrWhiteSpace(s)))
-        {
-          continue;
-        }
-
-        var date = DateTime.ParseExact(dateStr, "M/d/yy", CultureInfo.InvariantCulture);
-        var wake = DateTime.ParseExact(dateStr + " " + wakeStr.Replace("a", "AM").Replace("p", "PM"), "M/d/yy h:mmtt", CultureInfo.InvariantCulture);
-        DailyStats.Add(new DailyStat(date, wake));
       }
 
       IgnoreSetup = true;
@@ -325,24 +341,6 @@ namespace Illusion
       }
     }
 
-    static void FindMissingDays(int year, List<Block> blocks)
-    {
-      var start = new DateTime(year, 1, 1);
-      var stop = new DateTime(year + 1, 1, 1);
-      for (var date = start; date < stop && date < DateTime.Now.Date; date = date.AddDays(1))
-      {
-        if (date.DayOfWeek == DayOfWeek.Sunday || date.DayOfWeek == DayOfWeek.Saturday)
-        {
-          continue;
-        }
-        if (blocks.Any(b => b.Date == date))
-        {
-          continue;
-        }
-        Console.WriteLine(date.ToString("M/d/yy"));
-      }
-    }
-
     void DisplayBlocks()
     {
       if (IgnoreSetup)
@@ -365,16 +363,6 @@ namespace Illusion
       var incomes = AllIncomes.Select(i => Chop(i, dtp_Start.Value, dtp_Stop.Value)).Where(i => i != null).ToList();
       incomes = Filter(incomes, i => new[] { i.Company }, iclb_Companies);
 
-      var dailyStats = DailyStats.Where(b => b.Date >= dtp_Start.Value && b.Date <= dtp_Stop.Value).ToList();
-      if (dailyStats.Any())
-      {
-        Console.WriteLine("Average Wake: " + dailyStats.Average(s => s.Wake.Hour + s.Wake.Minute / 60));
-      }
-      else
-      {
-        Console.WriteLine("Average Wake: N/A");
-      }
-
       if (!blocks.Any())
       {
         dgv_Stats.Columns.Clear();
@@ -384,7 +372,7 @@ namespace Illusion
       }
 
       // Display stats and overview.
-      var groups = ((Grouper)cb_Grouping.SelectedItem).GetGroups(blocks, inspections, incomes, dtp_Start.Value, dtp_Stop.Value, cb_IgnoreParenthesis.Checked);
+      var groups = ((Grouper)cb_Grouping.SelectedItem).GetGroups(blocks, inspections, incomes, dtp_Start.Value, dtp_Stop.Value, cb_CollapseParenthesis.Checked);
       DisplayStats("Stats", dgv_Stats, groups, Stats);
       DisplayStats("Overview", dgv_Overview, groups, Overviews);
 
@@ -450,8 +438,7 @@ namespace Illusion
       var ret = new Income
       {
         Amount = income.Amount,
-        Bonus = income.Bonus,
-        CheckDate = income.CheckDate,
+        Paid = income.Paid,
         Company = income.Company,
         Start = income.Start,
         Stop = income.Stop
@@ -506,6 +493,47 @@ namespace Illusion
       dgv.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
       dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders;
       dgv.AutoResizeColumns();
+    }
+
+    static void FormatCategory(Categorizable cat)
+    {
+      string Braketize(string _s) => $@"<{_s}>";
+      string MarkError(string _s) => $@"!{_s}!";
+
+      if (cat.Company == "")
+      {
+        cat.Company = "<Unspecified>";
+      }
+      if (cat.Project == "")
+      {
+        cat.Project = "<Unpsecified>";
+      }
+      if (cat.Feature == "")
+      {
+        cat.Feature = "<Unspecified>";
+      }
+      if (cat.Activity == "")
+      {
+        cat.Activity = "<Unspecified>";
+      }
+
+      if (NonProjects.ContainsKey(cat.Project))
+      {
+        if (!NonProjects[cat.Project].Contains(cat.Feature))
+        {
+          cat.Feature = MarkError(cat.Feature);
+        }
+        cat.Project = Braketize(cat.Project);
+      }
+      else if (DevelopmentActivities.Contains(cat.Activity)) { }
+      else if (NondevelopmentActivities.Contains(cat.Activity))
+      {
+        cat.Activity = Braketize(cat.Activity);
+      }
+      else
+      {
+        cat.Activity = MarkError(cat.Activity);
+      }
     }
 
     List<Block> UpdateListBoxAndFilterBlocks(List<Block> blocks, Func<Block, IEnumerable<string>> getCategories, IllusionCheckedListBox iclb)

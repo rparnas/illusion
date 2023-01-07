@@ -58,7 +58,7 @@ namespace Illusion
       this.iclb_Activities = new Illusion.IllusionCheckedListBox();
       this.iclb_Features = new Illusion.IllusionCheckedListBox();
       this.iclb_Projects = new Illusion.IllusionCheckedListBox();
-      this.cb_IgnoreParenthesis = new System.Windows.Forms.CheckBox();
+      this.cb_CollapseParenthesis = new System.Windows.Forms.CheckBox();
       this.btn_Reload = new System.Windows.Forms.Button();
       this.cb_Time = new System.Windows.Forms.ComboBox();
       ((System.ComponentModel.ISupportInitialize)(this.dgv_Stats)).BeginInit();
@@ -387,15 +387,15 @@ namespace Illusion
       // 
       // cb_IgnoreParenthesis
       // 
-      this.cb_IgnoreParenthesis.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
-      this.cb_IgnoreParenthesis.AutoSize = true;
-      this.cb_IgnoreParenthesis.Location = new System.Drawing.Point(603, 702);
-      this.cb_IgnoreParenthesis.Name = "cb_IgnoreParenthesis";
-      this.cb_IgnoreParenthesis.Size = new System.Drawing.Size(114, 17);
-      this.cb_IgnoreParenthesis.TabIndex = 20;
-      this.cb_IgnoreParenthesis.Text = "Ignore Parenthesis";
-      this.cb_IgnoreParenthesis.UseVisualStyleBackColor = true;
-      this.cb_IgnoreParenthesis.CheckedChanged += new System.EventHandler(this.cb_IgnoreParenthesis_CheckedChanged);
+      this.cb_CollapseParenthesis.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+      this.cb_CollapseParenthesis.AutoSize = true;
+      this.cb_CollapseParenthesis.Location = new System.Drawing.Point(603, 702);
+      this.cb_CollapseParenthesis.Name = "cb_CollapseParenthesis";
+      this.cb_CollapseParenthesis.Size = new System.Drawing.Size(114, 17);
+      this.cb_CollapseParenthesis.TabIndex = 20;
+      this.cb_CollapseParenthesis.Text = "Collapse Parenthesis";
+      this.cb_CollapseParenthesis.UseVisualStyleBackColor = true;
+      this.cb_CollapseParenthesis.CheckedChanged += new System.EventHandler(this.cb_IgnoreParenthesis_CheckedChanged);
       // 
       // btn_Reload
       // 
@@ -426,7 +426,7 @@ namespace Illusion
       this.ClientSize = new System.Drawing.Size(944, 729);
       this.Controls.Add(this.cb_Time);
       this.Controls.Add(this.btn_Reload);
-      this.Controls.Add(this.cb_IgnoreParenthesis);
+      this.Controls.Add(this.cb_CollapseParenthesis);
       this.Controls.Add(this.lbl_Activities);
       this.Controls.Add(this.lbl_People);
       this.Controls.Add(this.lbl_Features);
@@ -489,10 +489,10 @@ namespace Illusion
     private System.Windows.Forms.Label lbl_Features;
     private System.Windows.Forms.Label lbl_People;
     private System.Windows.Forms.Label lbl_Activities;
-    private System.Windows.Forms.CheckBox cb_IgnoreParenthesis;
+    private System.Windows.Forms.CheckBox cb_CollapseParenthesis;
     private System.Windows.Forms.TabPage tp_Overview;
     private System.Windows.Forms.DataGridView dgv_Overview;
-        private System.Windows.Forms.Button btn_Reload;
+    private System.Windows.Forms.Button btn_Reload;
     private System.Windows.Forms.ComboBox cb_Time;
   }
 }

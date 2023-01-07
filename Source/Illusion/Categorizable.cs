@@ -1,8 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 public class Categorizable
 {
@@ -11,6 +8,7 @@ public class Categorizable
   public string Feature;
   public string Activity;
   public List<string> People;
+  public string Raw;
 }
 
 public class Block : Categorizable
@@ -35,8 +33,7 @@ public class Income : Categorizable
   public DateTime Start;
   public DateTime Stop;
   public int Amount;
-  public DateTime? CheckDate;
-  public bool Bonus;
+  public DateTime? Paid;
 
   public double Hours { get { return (Stop - Start).TotalHours; } }
 }
