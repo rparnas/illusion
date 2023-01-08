@@ -321,6 +321,29 @@ namespace Illusion
       dtp_Start.Value =  dtpStart ?? AllBlocks.Min(b => b.Date);
       dtp_Stop.Value = dtpStop ?? AllBlocks.Max(b => b.Date);
       IgnoreSetup = false;
+
+      // FindOverlong(AllBlocks);
+      // FindOverlaps(AllBlocks);
+    }
+
+    static void FindOverlong(List<Block> blocks)
+    {
+      Console.WriteLine();
+
+      var overlong = blocks.Where(b => b.Hours > 8 && b.Start.HasValue && b.Stop.HasValue && !b.Raw.Contains("[OK]")).ToList();
+      if (overlong.Any())
+      {
+        Console.WriteLine("Overlong:");
+        foreach (var block in overlong)
+        {
+            Console.WriteLine($@"  {block.Start.Value} | {block.Raw}");
+        }
+      }
+      else
+      {
+        Console.WriteLine("No Overlong.");
+      }
+      Console.WriteLine();
     }
 
     static void FindOverlaps(List<Block> blocks)
@@ -335,10 +358,20 @@ namespace Illusion
         }
       }
 
-      foreach (var date in allOverlaps.Select(o => o.Date).Distinct())
+      Console.WriteLine();
+      if (allOverlaps.Any())
       {
-        Console.WriteLine(date);
+        Console.WriteLine("Overlaps:");
+        foreach (var date in allOverlaps.Select(o => o.Date).Distinct())
+        {
+          Console.WriteLine($@"  {date:M/d/yy}");
+        }
       }
+      else
+      {
+        Console.WriteLine("No Overlaps.");
+      }
+      Console.WriteLine();
     }
 
     void DisplayBlocks()
