@@ -208,20 +208,23 @@ namespace Illusion
 
     void LoadBlocks(string path, DateTime? dtpStart, DateTime? dtpStop)
     {
-      var timeSheet = Loader.GetXLSX(path, "Time Sheet");
-      var inspectionSheet = Loader.GetXLSX(path, "Inspections");
-      var incomeSheet = Loader.GetXLSX(path, "Income");
-      var dailyStatsSheet = Loader.GetXLSX(path, "Daily Stats");
-      if (timeSheet == null || inspectionSheet == null || incomeSheet == null)
+      var file = new FileInfo(path);
+      var company = file.Name
+        .Replace(".xlsx", "");
+
+      var ledger = Loader.GetXLSX(path, "Ledger");
+      var inspections = Loader.GetXLSX(path, "Inspections");
+      var income = Loader.GetXLSX(path, "Income");
+      if (ledger == null || inspections == null || income == null)
         return;
 
       AllBlocks.Clear();
-      foreach (var row in timeSheet.Rows.Cast<DataRow>())
+      foreach (var row in ledger.Rows.Cast<DataRow>())
       {
-        var dateStr = row["Date"].ToString().Trim();
-        var startStr = row["Start"].ToString().Trim();
-        var stopStr = row["Stop"].ToString().Trim();
-        var hourStr = row["Hours"].ToString().Trim();
+        var dateStr = GetRawString(row, "Date");
+        var startStr = GetRawString(row, "Start");
+        var stopStr = GetRawString(row, "Stop");
+        var hourStr = GetRawString(row, "Hours");
 
         // Skip any ongoing entries
         if (!string.IsNullOrEmpty(dateStr) && !string.IsNullOrEmpty(startStr) && string.IsNullOrEmpty(stopStr))
@@ -257,7 +260,7 @@ namespace Illusion
           Stop = stop,
           Hours = hours,
           DevHours = devHours,
-          Company = row["Company"].ToString().Trim(),
+          Company = company,
           Project = row["Project"].ToString().Trim(),
           Feature = row["Feature"].ToString().Trim(),
           Activity = row["Activity"].ToString().Trim(),
@@ -280,7 +283,7 @@ namespace Illusion
       });
 
       AllInspections.Clear();
-      foreach (DataRow row in inspectionSheet.Rows)
+      foreach (DataRow row in inspections.Rows)
       {
         var dateStr = row["Date"].ToString().Trim();
         var date = DateTime.ParseExact(dateStr, "M/d/yy", CultureInfo.InvariantCulture);
@@ -294,7 +297,7 @@ namespace Illusion
         AllInspections.Add(new Inspection
         {
           Date = date,
-          Company = row["Company"].ToString().Trim(),
+          Company = company,
           Project = row["Project"].ToString().Trim(),
           Feature = row["Feature"].ToString().Trim(),
           Findings = issues,
@@ -303,11 +306,11 @@ namespace Illusion
       }
 
       AllIncomes.Clear();
-      foreach (DataRow row in incomeSheet.Rows)
+      foreach (DataRow row in income.Rows)
       {
         var amountStr = row["Amount"].ToString().Trim();
         var amount = double.TryParse(amountStr, out double doubleAmount) ? (int)Math.Round(doubleAmount) : 0;
-        var paidStr = row["Date Paid"].ToString();
+        var paidStr = row["Paid"].ToString();
         var startStr = row["Start"].ToString();
         var stopStr = row["Stop"].ToString();
 
@@ -315,7 +318,7 @@ namespace Illusion
         {
           Amount = amount,
           Paid = string.IsNullOrWhiteSpace(paidStr) || paidStr == "?" ? null : (DateTime?)DateTime.ParseExact(paidStr, "M/d/yy", CultureInfo.InvariantCulture),
-          Company = row["Company"].ToString().Trim(),
+          Company = company,
           Start = DateTime.ParseExact(startStr, "M/d/yy", CultureInfo.InvariantCulture),
           Stop = DateTime.ParseExact(stopStr, "M/d/yy", CultureInfo.InvariantCulture),
         });
@@ -530,6 +533,18 @@ namespace Illusion
       dgv.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
       dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders;
       dgv.AutoResizeColumns();
+    }
+
+    static string GetRawString(DataRow row, string columnName)
+    {
+      if (!row.Table.Columns.Contains(columnName))
+      {
+        return null;
+      }
+
+      return row[columnName]
+        .ToString()
+        .Trim();
     }
 
     static void FormatCategory(Categorizable cat)
