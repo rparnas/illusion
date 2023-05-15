@@ -47,11 +47,15 @@ namespace Illusion
       "VOC",
     };
 
-    public static HashSet<string> NondevelopmentActivities = new HashSet<string>
+    public static HashSet<string> OtherNDA = new HashSet<string>
+    {
+      "Meeting",
+    };
+
+    public static HashSet<string> TechnicalNDA = new HashSet<string>
     {
       "Config",
       "Deployment",
-      "Meeting",
       "Support",
     };
 
@@ -559,7 +563,7 @@ namespace Illusion
         cat.Project = Braketize(cat.Project);
       }
       else if (DevelopmentActivities.Contains(cat.Activity)) { }
-      else if (NondevelopmentActivities.Contains(cat.Activity))
+      else if (OtherNDA.Contains(cat.Activity) || TechnicalNDA.Contains(cat.Activity))
       {
         cat.Activity = Braketize(cat.Activity);
       }
