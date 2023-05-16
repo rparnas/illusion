@@ -674,6 +674,9 @@ namespace Illusion
       cb_Time.SelectedItem = null;
       dtp_Start.Value = timeFilter.GetStart();
       dtp_Stop.Value = timeFilter.GetStop();
+
+      iclb_Companies.SelectAll(true);
+      iclb_Companies.SelectAllForward();
     }
 
     void dgv_SortCompare(object sender, DataGridViewSortCompareEventArgs e)

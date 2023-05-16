@@ -83,7 +83,7 @@ namespace Illusion
       }
     }
 
-    void SelectAllForward()
+    public void SelectAllForward()
     {
       foreach (var iclb in Forward)
       {
@@ -91,7 +91,7 @@ namespace Illusion
       }
     }
 
-    void SelectAll(bool value)
+    public void SelectAll(bool value)
     {
       IgnoreItemCheck = true;
       for (int i = 0; i < Items.Count; i++)
