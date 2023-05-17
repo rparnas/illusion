@@ -109,6 +109,8 @@ namespace Illusion
 
     static List<TimeFilter> TimeFilters = new List<TimeFilter>
     {
+      new TimeFilter("Today",     () => DateTime.Now.Date,
+                                  () => DateTime.Now.Date),
       new TimeFilter("This Week", () => DateTime.Now.RoundWeekDown(DayOfWeek.Sunday),
                                   () => DateTime.Now.RoundWeekDown(DayOfWeek.Sunday).AddDays(6)),
       new TimeFilter("Last Week", () => DateTime.Now.RoundWeekDown(DayOfWeek.Sunday).AddDays(-7),
