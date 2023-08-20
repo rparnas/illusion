@@ -1,8 +1,6 @@
-﻿using System;
-
-namespace Illusion
+﻿namespace Illusion
 {
-  public static class DateTimeUtils
+  internal static class DateTimeUtils
   {
     /// <summary>Returns true if two ranges bounded by the given DateTimes overlap.</summary>
     public static bool Intersects(DateTime a0, DateTime a1, DateTime b0, DateTime b1)
