@@ -274,11 +274,12 @@ namespace Illusion
         return;
       }
 
-      foreach (var file in files)
-      {
-        var dict = Loader.GetExcelSheets(file.FullName, null);
-        Data = Parser.Parse(dict);
-      }
+
+      var sets = files
+        .Select(file => Loader.GetExcelSheets(file.FullName, null))
+        .Select(Parser.Parse)
+        .ToList();
+      Data = IllusionSet.Merge(sets);
 
       if (Settings.Default.LogPath == null)
       {

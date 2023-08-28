@@ -12,5 +12,18 @@
       Income = income;
       People = people;
     }
+
+    public static IllusionSet Merge(List<IllusionSet> sets)
+    {
+      if (sets.Count == 1)
+      {
+        return sets.First();
+      }
+
+      return new IllusionSet(
+        sets.SelectMany(x => x.Blocks).ToList(),
+        sets.SelectMany(x => x.Income).ToList(),
+        sets.SelectMany(x => x.People).ToList());
+    }
   }
 }
