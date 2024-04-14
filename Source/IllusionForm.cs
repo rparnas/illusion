@@ -206,12 +206,13 @@ namespace Illusion
         return initials
           .Select(i =>
           {
-            var person = people.FirstOrDefault(p => p.Initials == i);
-            if (person != null)
-            {
-              return person.ToString();
-            }
-            return i;
+            var persons = people
+              .Where(p => p.Initials == i)
+              .ToList();
+
+            return persons.Count == 0 ? i :
+                   persons.Count == 1 ? persons.Single().ToString() :
+                   $@"{i} (?)";
           })
           .ToArray();
       }
@@ -260,6 +261,18 @@ namespace Illusion
       else
       {
         pb_Visualization.Image = null;
+      }
+
+      // errors
+      tb_Errors.Text = string.Join("\r\n\r\n", Data.Errors.ToArray());
+      tpErrors.Text = $@"Errors ({Data.Errors.Count})";
+      if (Data.Errors.Any() && !tc.TabPages.Contains(tpErrors))
+      {
+        tc.TabPages.Add(tpErrors);
+      }
+      else if (!Data.Errors.Any() && tc.TabPages.Contains(tpErrors))
+      {
+        tc.TabPages.Remove(tpErrors);
       }
     }
 
