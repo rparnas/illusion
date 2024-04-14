@@ -31,9 +31,31 @@
         "Misc", new HashSet<string>
         {
           "Chitchat",
-          "Food", 
+          "Food",
           "Other",
-          "PTO" 
+          "PTO"
+        }
+      },
+    };
+
+    public static Dictionary<string, HashSet<string>> NonFeatures = new Dictionary<string, HashSet<string>>
+    {
+      {
+        "Op", new HashSet<string>
+        {
+          "Bug",
+          "Config",
+          "Deployment",
+          "Support",
+          "Testing",
+        }
+      },
+      {
+        "Team", new HashSet<string>
+        {
+          "Meeting",
+          "Planning",
+          "Process",
         }
       },
     };
@@ -58,22 +80,6 @@
       "VOC",
     };
 
-    public static HashSet<string> OpActivities = new HashSet<string>
-    {
-      "Bug",
-      "Config",
-      "Deployment",
-      "Support",
-      "Testing",
-    };
-
-    public static HashSet<string> TeamActivities = new HashSet<string>
-    {
-      "Meeting",
-      "Planning",
-      "Process",    
-    };
-
     public string Company { get; }
     public string Project { get; }
     public string Feature { get; }
@@ -94,18 +100,21 @@
 
       if (NonProjects.ContainsKey(_project))
       {
-        if (!NonProjects[_project].Contains(_feature))
-        {
-          _feature = MarkError(_feature);
-        }
+        _feature = NonProjects[_project].Contains(_feature) ?
+          Braketize(_feature) :
+          MarkError(_feature);
+
         _project = Braketize(_project);
       }
-      else if (DevActivities.Contains(_activity)) { }
-      else if (TeamActivities.Contains(_activity) || OpActivities.Contains(_activity))
+      else if (NonFeatures.ContainsKey(_feature))
       {
-        _activity = Braketize(_activity);
+        _activity = NonFeatures[_feature].Contains(_activity) ?
+          Braketize(_activity) :
+          MarkError(_activity);
+
+        _feature = Braketize(_feature);
       }
-      else if (_activity != unspecified)
+      else if (!DevActivities.Contains(_activity))
       {
         _activity = MarkError(_activity);
       }
