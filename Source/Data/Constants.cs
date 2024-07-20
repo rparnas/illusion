@@ -1,11 +1,10 @@
-﻿namespace Illusion.Data
+﻿namespace Illusion.Data;
+
+static class Constants
 {
-  static class Constants
+  public static class Initials
   {
-    public static class Initials
-    {
-      public const string Self = "<Self>";
-      public const string Unspecified = "<Unspecified>";
-    }
+    public const string Self = "<Self>";
+    public const string Unspecified = "<Unspecified>";
   }
 }

@@ -1,7 +1,6 @@
-﻿namespace Illusion.Data
+﻿namespace Illusion.Data;
+
+internal class ParsingException : Exception
 {
-  internal class ParsingException : Exception
-  {
-    public ParsingException(string message) : base(message){ }
-  }
+  public ParsingException(string message) : base(message){ }
 }

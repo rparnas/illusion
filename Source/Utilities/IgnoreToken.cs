@@ -1,23 +1,22 @@
-﻿namespace Illusion.Utilities
+﻿namespace Illusion.Utilities;
+
+internal class IgnoreToken
 {
-  internal class IgnoreToken
+  int Count;
+
+  public bool Ignore => Count > 0;
+
+  public void Do(Action action)
   {
-    int Count;
+    Count++;
 
-    public bool Ignore => Count > 0;
-
-    public void Do(Action action)
+    try
     {
-      Count++;
-
-      try
-      {
-        action.Invoke();
-      }
-      finally
-      {
-        Count--;
-      }
+      action.Invoke();
+    }
+    finally
+    {
+      Count--;
     }
   }
 }

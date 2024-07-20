@@ -1,14 +1,13 @@
-﻿namespace Illusion.Utilities
-{
-  internal class Group<T>
-  {
-    public readonly string Name;
-    public readonly List<T> Items;
+﻿namespace Illusion.Utilities;
 
-    public Group(string name, List<T> items)
-    {
-      Name = name;
-      Items = items;
-    }
+internal class Group<T>
+{
+  public readonly string Name;
+  public readonly List<T> Items;
+
+  public Group(string name, List<T> items)
+  {
+    Name = name;
+    Items = items;
   }
 }

@@ -1,7 +1,6 @@
-﻿namespace Illusion.Data
+﻿namespace Illusion.Data;
+
+internal interface IScope
 {
-  internal interface IScope
-  {
-    public Scope Scope { get; }
-  }
+  public Scope Scope { get; }
 }
