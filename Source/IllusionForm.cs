@@ -2,6 +2,7 @@ using Illusion.Controls;
 using Illusion.Data;
 using Illusion.Utilities;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Data;
 
 namespace Illusion;
@@ -106,49 +107,76 @@ public partial class IllusionForm : Form
       return ret;
     }
 
+    static bool GetIsCurrency<T>(Stat<T> stat)
+    {
+      return stat.Name.Contains("$");
+    }
+
+    static DataGridViewTextBoxColumn MakeGroupColumn()
+    {
+      return new DataGridViewTextBoxColumn
+      {
+        DefaultCellStyle = new DataGridViewCellStyle
+        {
+          Alignment = DataGridViewContentAlignment.MiddleLeft,
+        },
+        Name = "Group",
+        ValueType = typeof(string)
+      };
+    }
+
+    static DataGridViewTextBoxColumn MakeStatColumn<T>(Stat<T> stat)
+    {
+      return new DataGridViewTextBoxColumn
+      {
+        DefaultCellStyle = new DataGridViewCellStyle
+        {
+          Alignment = stat.IsDate ? DataGridViewContentAlignment.MiddleRight :
+                stat.IsNumber ? DataGridViewContentAlignment.MiddleRight :
+                DataGridViewContentAlignment.MiddleLeft,
+          Format = stat.Format,
+        },
+        Name = stat.Name,
+        SortMode = DataGridViewColumnSortMode.Automatic,
+        ValueType = stat.Type
+      };
+    }
+
     static void DisplayStats(string name, DataGridView dgv, bool showIncome, List<Group<Block>> groups, List<Stat<Group<Block>>> stats)
     {
+      // save sorting
+      var sortColumnName = dgv.SortedColumn?.Name;
+      var sortOrder = dgv.SortOrder;
+
+      // clear
       dgv.Columns.Clear();
       dgv.Rows.Clear();
 
+      // display nothing
       if (!groups.Any(g => g.Items.Any()))
       {
         return;
       }
 
-      dgv.Columns.Add(new DataGridViewTextBoxColumn { Name = "Group", ValueType = typeof(string) });
-
-      foreach (var stat in stats)
+      // add columns
+      dgv.Columns.Add(MakeGroupColumn());
+      foreach (var stat in stats.Where(stat => showIncome || !GetIsCurrency(stat)))
       {
-        if (!showIncome && stat.Name.Contains("$"))
-        {
-          continue;
-        }
-
-        var col = new DataGridViewTextBoxColumn
-        {
-          Name = stat.Name,
-          SortMode = DataGridViewColumnSortMode.Automatic,
-          ValueType = stat.Type
-        };
-
-        col.DefaultCellStyle.Format = stat.Format;
-
-        dgv.Columns.Add(col);
+        dgv.Columns.Add(MakeStatColumn(stat));
       }
 
+      // add rows
       foreach (var group in groups)
       {
         var row = dgv.Rows[dgv.Rows.Add()];
         row.Cells["Group"].Value = group.Name;
-        foreach (var stat in stats)
+        foreach (var stat in stats.Where(stat => showIncome || !GetIsCurrency(stat)))
         {
-          if (!showIncome && stat.Name.Contains("$"))
+          var value = stat.Compute(group);
+          if (!double.TryParse(value?.ToString() ?? string.Empty, out var doubleValue) || doubleValue != 0d)
           {
-            continue;
+            row.Cells[stat.Name].Value = stat.Compute(group);
           }
-
-          row.Cells[stat.Name].Value = stat.Compute(group);
         }
 
         if (group.Name == "Total")
@@ -157,9 +185,20 @@ public partial class IllusionForm : Form
         }
       }
 
-      dgv.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+      // size
       dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders;
       dgv.AutoResizeColumns();
+
+      // sort
+      if (sortColumnName != null && dgv.Columns.Contains(sortColumnName) && sortOrder != SortOrder.None)
+      {
+        var dir = 
+          sortOrder == SortOrder.Ascending ? ListSortDirection.Ascending :
+          sortOrder == SortOrder.Descending ? ListSortDirection.Descending :
+          throw new NotImplementedException();
+
+        dgv.Sort(dgv.Columns[sortColumnName], dir);
+      }
     }
 
     static Bitmap MakeVisualizationBitmap(List<Block> blocks, DateTime bmpStart, DateTime bmpStop, Func<Block, Brush> getBrush)
