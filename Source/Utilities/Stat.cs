@@ -10,10 +10,10 @@ internal class Stat<T>
 
   readonly Func<T, object> ComputeInner;
 
-  public Stat(string name, Func<T, DateTime> compute)
+  public Stat(string name, string? format, Func<T, DateTime> compute)
   {
     Name = name;
-    Format = "MM/dd/yy";
+    Format = format;
     IsDate = true;
     IsNumber = false;
     Type = typeof(DateTime);
@@ -21,10 +21,10 @@ internal class Stat<T>
     ComputeInner = group => compute(group);
   }
 
-  public Stat(string name, Func<T, double> compute)
+  public Stat(string name, string? format, Func<T, decimal> compute)
   {
     Name = name;
-    Format = "F2";
+    Format = format;
     IsDate = false;
     IsNumber = true;
     Type = typeof(double);
@@ -32,7 +32,18 @@ internal class Stat<T>
     ComputeInner = item => compute(item);
   }
 
-  public Stat(string name, Func<T, int> compute)
+  public Stat(string name, string? format, Func<T, double> compute)
+  {
+    Name = name;
+    Format = format;
+    IsDate = false;
+    IsNumber = true;
+    Type = typeof(double);
+
+    ComputeInner = item => compute(item);
+  }
+
+  public Stat(string name, string? format, Func<T, int> compute)
   {
     Name = name;
     Format = null;

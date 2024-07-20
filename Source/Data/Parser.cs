@@ -8,19 +8,23 @@ static internal class Parser
 {
   public static IllusionSet Parse(Dictionary<string, DataTable> tables)
   {
-    var blocks = ParseBlocks(tables["Ledger"]);
-    var people = ParsePeople(tables["People"]);
-    var income = ParseIncomes(tables["Income"]);
+    var ledgerTable = tables.GetValueOrDefault("Ledger");
+    var peopleTable = tables.GetValueOrDefault("People");
+    var incomeTable = tables.GetValueOrDefault("Income");
+
+    var blocks = ParseBlocks(ledgerTable);
+    var people = ParsePeople(peopleTable);
+    var income = ParseIncomes(incomeTable);
     var errors = new List<string>();
 
     // check for duplicate initials
-    var duplicates = people
-      .GroupBy(p => p.Initials)
+    var duplicateInitials = people
+      .GroupBy(p => $@"{p.Company}: {p.Initials}")
       .Where(group => group.Count() > 1)
       .ToList();
-    if (duplicates.Any())
+    if (duplicateInitials.Count != 0)
     {
-      errors.Add("Duplicate initials defined in 'People' table:\r\n" + string.Join("\r\n", duplicates.Select(group => $@"  * {group.Key}").ToArray()));
+      errors.Add("Duplicate initials for the same company in the 'People' table:\r\n" + string.Join("\r\n", duplicateInitials.Select(group => $@"  * {group.Key}").ToArray()));
     }
 
     // check for blocks referencing unknown initials
@@ -36,18 +40,18 @@ static internal class Parser
           continue;
         }
 
-        var person = people.FirstOrDefault(p => p.Companies.Contains(company) && p.Initials == initials);
+        var person = people.FirstOrDefault(p => p.Company == company && p.Initials == initials);
         if (person is null)
         {
           if (!missingInitialsByCompany.ContainsKey(company))
           {
-            missingInitialsByCompany[company] = new HashSet<string>();
+            missingInitialsByCompany[company] = [];
           }
           missingInitialsByCompany[company].Add(initials);
         }
       }
     }
-    if (missingInitialsByCompany.Any())
+    if (missingInitialsByCompany.Count != 0)
     {
       var error = new List<string>
       {
@@ -133,11 +137,11 @@ static internal class Parser
                     b.Time.Start >= i.Start && b.Time.Stop < i.Stop)
         .ToList();
 
-      if (overlappingDateBlocks.Any() && overlappingTimeBlocks.Any())
+      if (overlappingDateBlocks.Count != 0 && overlappingTimeBlocks.Count != 0)
       {
         throw new ParsingException("Date-only blocks and specific time blocks overlap the same income");
       }
-      else if (!overlappingDateBlocks.Any() && !overlappingTimeBlocks.Any())
+      else if (overlappingDateBlocks.Count == 0 && overlappingTimeBlocks.Count == 0)
       {
         throw new ParsingException("Non-distributed income");
       }
@@ -170,13 +174,55 @@ static internal class Parser
       }
     }
 
+    // process initials
+    var peopleByCompanyThenInitials = new Dictionary<string, Dictionary<string, List<Person>>>();
+    foreach (var person in people)
+    {
+      var company = person.Company;
+      var initials = person.Initials;
+
+      if (!peopleByCompanyThenInitials.ContainsKey(company))
+      {
+        peopleByCompanyThenInitials[company] = new Dictionary<string, List<Person>>();
+      }
+
+      if (!peopleByCompanyThenInitials[company].ContainsKey(initials))
+      {
+        peopleByCompanyThenInitials[company][initials] = new List<Person>();
+      }
+
+      peopleByCompanyThenInitials[company][initials].Add(person);
+    }
+    foreach (var block in blocks)
+    {
+      var peopleByInitials = peopleByCompanyThenInitials.GetValueOrDefault(block.Scope.Company);
+
+      for (var i = 0; i < block.Scope.People.Length; i++)
+      {
+        var name = block.Scope.People[i];
+
+        var persons = peopleByInitials?.GetValueOrDefault(name);
+
+        var newName = persons is null || persons.Count == 0 ? name :
+                      persons.Count == 1 ? persons.Single().ToString() :
+                      $@"{name} (?)";
+
+        block.Scope.People[i] = newName;
+      }
+    }
+
     return new IllusionSet(blocks, income, people, errors);
   }
 
   #region Blocks
 
-  static List<Block> ParseBlocks(DataTable table)
+  static List<Block> ParseBlocks(DataTable? table)
   {
+    if (table is null)
+    {
+      return new List<Block>();
+    }
+
     return table.Rows
       .Cast<DataRow>()
       .Select(ParseBlock)
@@ -282,8 +328,13 @@ static internal class Parser
 
   #region Income
 
-  static List<Income> ParseIncomes(DataTable table)
+  static List<Income> ParseIncomes(DataTable? table)
   {
+    if (table is null)
+    {
+      return new List<Income>();
+    }
+
     return table.Rows
       .Cast<DataRow>()
       .Select(ParseIncome)
@@ -298,25 +349,30 @@ static internal class Parser
     const string stopColumnName = "Stop";
 
     var company = GetString(row, companyColumnName);
-    var amount = GetDouble(row, amountColumnName);
+    var amount = GetDecimal(row, amountColumnName);
     var start = GetDate(row, statColumnName);
     var stop = GetDate(row, stopColumnName);
 
-    if (company is null || amount is null || start is null || stop is null)
+    if (amount is null || company is null || start is null || stop is null)
     {
       var requriredColumns = new[] { companyColumnName, amountColumnName, statColumnName, stopColumnName };
       throw new ParsingException($@"The following columns are required: {string.Join(" ,", requriredColumns)}");
     }
 
-    return new Income(amount.Value, company, start.Value, stop.Value.AddDays(1));
+    return new Income((double)amount.Value, company, start.Value, stop.Value.AddDays(1));
   }
 
   #endregion
 
   #region People
 
-  static List<Person> ParsePeople(DataTable table)
+  static List<Person> ParsePeople(DataTable? table)
   {
+    if (table is null)
+    {
+      return new List<Person>();
+    }
+
     return table.Rows
       .Cast<DataRow>()
       .Select(ParsePerson)
@@ -325,27 +381,27 @@ static internal class Parser
 
   static Person ParsePerson(DataRow row)
   {
-    const string initialsColumnName = "Initials";
-    const string lastNameColumnName = "Last Name";
-    const string firstNameColumnName = "First Name";
-    const string companiesColumnName = "Companies";
+    var company = GetString(row, Constants.PeopleTable.Columns.Company);
+    var initials = GetString(row, Constants.PeopleTable.Columns.Initials);
+    var firstName = GetString(row, Constants.PeopleTable.Columns.FirstName);
+    var lastName = GetString(row, Constants.PeopleTable.Columns.LastName);
 
-    var initials = GetString(row, initialsColumnName);
-    var firstName = GetString(row, firstNameColumnName);
-    var lastName = GetString(row, lastNameColumnName);
-
-    var companies = (GetString(row, companiesColumnName) ?? "")
-      .Split(",", StringSplitOptions.TrimEntries)
-      .OrderBy(company => company)
-      .ToList();
-
-    if (string.IsNullOrEmpty(initials) || string.IsNullOrEmpty(firstName) || string.IsNullOrEmpty(lastName) || !companies.Any())
+    if (string.IsNullOrWhiteSpace(company) ||
+        string.IsNullOrWhiteSpace(initials) ||
+        string.IsNullOrWhiteSpace(firstName) ||
+        string.IsNullOrWhiteSpace(lastName))
     {
-      var requriredColumns = new[] { initialsColumnName, lastNameColumnName, firstNameColumnName, companiesColumnName };
+      var requriredColumns = new[] 
+      {
+        Constants.PeopleTable.Columns.Company,
+        Constants.PeopleTable.Columns.Initials,
+        Constants.PeopleTable.Columns.FirstName,
+        Constants.PeopleTable.Columns.LastName,
+      };
       throw new ParsingException($@"The following columns are required: {string.Join(" ,", requriredColumns)}");
     }
 
-    return new Person(initials, firstName, lastName, companies);
+    return new Person(company, initials, firstName, lastName);
   }
 
   #endregion
@@ -361,6 +417,22 @@ static internal class Parser
     }
 
     if (!DateTime.TryParseExact(str, "M/d/yy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+    {
+      return null;
+    }
+
+    return parsed;
+  }
+
+  static decimal? GetDecimal(DataRow row, string columnName)
+  {
+    var str = GetString(row, columnName);
+    if (str is null)
+    {
+      return null;
+    }
+
+    if (!decimal.TryParse(str, out var parsed))
     {
       return null;
     }

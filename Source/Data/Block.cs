@@ -2,11 +2,12 @@
 
 internal class Block : IScope
 {
-  public double Amount { get; set; }
   public string[] Others { get; }
   public string Raw { get; }
   public Scope Scope { get; }
   public Time Time { get; }
+
+  public double Amount { get; set; }
 
   public double DevHours => Time.Hours * (Scope.People.Length - 1);
 

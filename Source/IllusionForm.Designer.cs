@@ -57,7 +57,7 @@
       pb_Visualization = new PictureBox();
       tpStats = new TabPage();
       dgv_Stats = new DataGridView();
-      tpErrors = new TabPage();
+      tp_Errors = new TabPage();
       tc = new TabControl();
       cb_Income = new CheckBox();
       tb_Errors = new TextBox();
@@ -66,7 +66,7 @@
       ((System.ComponentModel.ISupportInitialize)pb_Visualization).BeginInit();
       tpStats.SuspendLayout();
       ((System.ComponentModel.ISupportInitialize)dgv_Stats).BeginInit();
-      tpErrors.SuspendLayout();
+      tp_Errors.SuspendLayout();
       tc.SuspendLayout();
       SuspendLayout();
       // 
@@ -89,11 +89,9 @@
       dtp_Start.Format = DateTimePickerFormat.Custom;
       dtp_Start.Location = new Point(95, 1241);
       dtp_Start.Margin = new Padding(6, 8, 6, 8);
-      dtp_Start.MinDate = new DateTime(2000, 1, 1, 0, 0, 0, 0);
       dtp_Start.Name = "dtp_Start";
       dtp_Start.Size = new Size(205, 39);
       dtp_Start.TabIndex = 5;
-      dtp_Start.ValueChanged += dtp_Start_ValueChanged;
       // 
       // dtp_Stop
       // 
@@ -105,7 +103,6 @@
       dtp_Stop.Name = "dtp_Stop";
       dtp_Stop.Size = new Size(205, 39);
       dtp_Stop.TabIndex = 6;
-      dtp_Stop.ValueChanged += dtp_Stop_ValueChanged;
       // 
       // lbl_Time
       // 
@@ -121,13 +118,13 @@
       // cb_Grouping
       // 
       cb_Grouping.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+      cb_Grouping.DropDownStyle = ComboBoxStyle.DropDownList;
       cb_Grouping.FormattingEnabled = true;
       cb_Grouping.Location = new Point(1172, 1238);
       cb_Grouping.Margin = new Padding(6, 8, 6, 8);
       cb_Grouping.Name = "cb_Grouping";
       cb_Grouping.Size = new Size(132, 40);
       cb_Grouping.TabIndex = 12;
-      cb_Grouping.SelectedIndexChanged += cb_Grouping_SelectedIndexChanged;
       // 
       // lbl_to
       // 
@@ -247,7 +244,6 @@
       iclb_People.Name = "iclb_People";
       iclb_People.Size = new Size(320, 364);
       iclb_People.TabIndex = 11;
-      iclb_People.ItemCheckChanged += iclb_People_ItemCheckChanged;
       // 
       // iclb_Companies
       // 
@@ -257,7 +253,6 @@
       iclb_Companies.Name = "iclb_Companies";
       iclb_Companies.Size = new Size(255, 292);
       iclb_Companies.TabIndex = 10;
-      iclb_Companies.ItemCheckChanged += iclb_Companies_ItemCheckChanged;
       // 
       // iclb_Activities
       // 
@@ -267,7 +262,6 @@
       iclb_Activities.Name = "iclb_Activities";
       iclb_Activities.Size = new Size(320, 724);
       iclb_Activities.TabIndex = 3;
-      iclb_Activities.ItemCheckChanged += iclb_Activities_ItemCheckChanged;
       // 
       // iclb_Features
       // 
@@ -278,7 +272,6 @@
       iclb_Features.Name = "iclb_Features";
       iclb_Features.Size = new Size(385, 1156);
       iclb_Features.TabIndex = 2;
-      iclb_Features.ItemCheckChanged += iclb_Features_ItemCheckChanged;
       // 
       // iclb_Projects
       // 
@@ -289,7 +282,6 @@
       iclb_Projects.Name = "iclb_Projects";
       iclb_Projects.Size = new Size(255, 796);
       iclb_Projects.TabIndex = 1;
-      iclb_Projects.ItemCheckChanged += iclb_Projects_ItemCheckChanged;
       // 
       // tpVisualization
       // 
@@ -386,22 +378,22 @@
       // 
       // tpErrors
       // 
-      tpErrors.Controls.Add(tb_Errors);
-      tpErrors.Location = new Point(8, 46);
-      tpErrors.Margin = new Padding(6, 8, 6, 8);
-      tpErrors.Name = "tpErrors";
-      tpErrors.Padding = new Padding(6, 8, 6, 8);
-      tpErrors.Size = new Size(1435, 1144);
-      tpErrors.TabIndex = 0;
-      tpErrors.Text = "Errors (0)";
-      tpErrors.UseVisualStyleBackColor = true;
+      tp_Errors.Controls.Add(tb_Errors);
+      tp_Errors.Location = new Point(8, 46);
+      tp_Errors.Margin = new Padding(6, 8, 6, 8);
+      tp_Errors.Name = "tp_Errors";
+      tp_Errors.Padding = new Padding(6, 8, 6, 8);
+      tp_Errors.Size = new Size(1435, 1144);
+      tp_Errors.TabIndex = 0;
+      tp_Errors.Text = "Errors";
+      tp_Errors.UseVisualStyleBackColor = true;
       // 
       // tc
       // 
       tc.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
       tc.Controls.Add(tpStats);
       tc.Controls.Add(tpVisualization);
-      tc.Controls.Add(tpErrors);
+      tc.Controls.Add(tp_Errors);
       tc.Location = new Point(1040, 29);
       tc.Margin = new Padding(6, 8, 6, 8);
       tc.Name = "tc";
@@ -470,8 +462,8 @@
       ((System.ComponentModel.ISupportInitialize)pb_Visualization).EndInit();
       tpStats.ResumeLayout(false);
       ((System.ComponentModel.ISupportInitialize)dgv_Stats).EndInit();
-      tpErrors.ResumeLayout(false);
-      tpErrors.PerformLayout();
+      tp_Errors.ResumeLayout(false);
+      tp_Errors.PerformLayout();
       tc.ResumeLayout(false);
       ResumeLayout(false);
       PerformLayout();
@@ -504,7 +496,7 @@
     private Panel pnl_Visualization;
     private PictureBox pb_Visualization;
     private TabPage tpStats;
-    private TabPage tpErrors;
+    private TabPage tp_Errors;
     private DataGridView dgv_Stats;
     private TabControl tc;
     private CheckBox cb_Income;

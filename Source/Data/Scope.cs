@@ -2,7 +2,7 @@
 
 internal class Scope
 {
-  public static Dictionary<string, HashSet<string>> NonProjects = new Dictionary<string, HashSet<string>>
+  public static Dictionary<string, HashSet<string>> NonProjects = new()
   {
     {
       "Admin", new HashSet<string>
@@ -21,9 +21,9 @@ internal class Scope
     {
       "Enrichment", new HashSet<string>
       {
+        "Social",
         "Talks",
         "Talk Prep",
-        "Social",
         "Workshops",
       }
     },
@@ -38,7 +38,7 @@ internal class Scope
     },
   };
 
-  public static Dictionary<string, HashSet<string>> NonFeatures = new Dictionary<string, HashSet<string>>
+  public static Dictionary<string, HashSet<string>> NonFeatures = new()
   {
     {
       "Op", new HashSet<string>
@@ -46,26 +46,20 @@ internal class Scope
         "Bug",
         "Config",
         "Deployment",
+        "Meeting",
+        "Planning",
+        "Process",
         "Support",
         "Testing",
       }
     },
-    {
-      "Team", new HashSet<string>
-      {
-        "Meeting",
-        "Planning",
-        "Process",
-      }
-    },
   };
 
-  public static HashSet<string> DevActivities = new HashSet<string>
+  public static HashSet<string> DevActivities = new()
   {
     "Code",
     "Code (Fixes)",
     "Code (Review)",
-    "Class",
     "Design",
     "Design (Fixes)",
     "Design (Review)",
@@ -77,7 +71,7 @@ internal class Scope
     "Test (Ad-hoc)",
     "Test (Automated)",
     "Test (Manual)",
-    "Test (Manual Execution)",
+    "Test (Execution)",
     "VOC",
   };
 
@@ -117,7 +111,8 @@ internal class Scope
     }
     else if (!DevActivities.Contains(_activity))
     {
-      _activity = MarkError(_activity);
+      _activity = _activity == unspecified ? unspecified :
+        MarkError(_activity);
     }
 
     Company = _company;

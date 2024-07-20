@@ -11,34 +11,42 @@ public partial class IllusionForm : Form
 {
   const int VisualizationScaleFactor = 4;
 
-  static readonly List<Grouper<Block>> Groupers = new List<Grouper<Block>>
-  {
-    new Grouper<Block>(nameof(Scope.Company), b => new [] { b.Scope.Company }),
-    new Grouper<Block>(nameof(Scope.Project), b => new [] { b.Scope.Project }),
-    new Grouper<Block>(nameof(Scope.Feature), b => new [] { b.Scope.Feature }),
-    new Grouper<Block>(nameof(Scope.Activity), b => new [] { b.Scope.Activity }),
-    new Grouper<Block>(nameof(Scope.People), b => b.Scope.People),
-  };
+  static readonly List<Grouper<Block>> Groupers =
+  [
+    new(nameof(Scope.Company ), b => [b.Scope.Company ]),
+    new(nameof(Scope.Project ), b => [b.Scope.Project ]),
+    new(nameof(Scope.Feature ), b => [b.Scope.Feature ]),
+    new(nameof(Scope.Activity), b => [b.Scope.Activity]),
+    new(nameof(Scope.People  ), b => b.Scope.People    ),
+  ];
 
-  static readonly List<Stat<Group<Block>>> Stats = new List<Stat<Group<Block>>>
-  {
-    new Stat<Group<Block>>("Start",          b => b.Items.Min(b => b.Time.Date)                                ),
-    new Stat<Group<Block>>("Stop",           b => b.Items.Max(b => b.Time.Date)                                ),
-    new Stat<Group<Block>>("Hours",          b => b.Items.Sum(b => b.Time.Hours)                               ),
-    new Stat<Group<Block>>("Dev Hours",      b => b.Items.Sum(b => b.DevHours)                                 ),
-    new Stat<Group<Block>>("Dev Hour Ratio", b => b.Items.Sum(b => b.DevHours) / b.Items.Sum(b => b.Time.Hours)),
-    new Stat<Group<Block>>("$",              b => b.Items.Sum(b => b.Amount)                                   ),
-    new Stat<Group<Block>>("$ / hour",       b => b.Items.Sum(b => b.Amount) / b.Items.Sum(b => b.Time.Hours)  ),
-  };
+  static readonly List<Stat<Group<Block>>> Stats =
+  [
+    new("Start",         "MM/dd/yy", b => b.Items.Min(b => b.Time.Date)                                ),
+    new("Stop",          "MM/dd/yy", b => b.Items.Max(b => b.Time.Date)                                ),
+    new("Hours",         "N2",       b => b.Items.Sum(b => b.Time.Hours)                               ),
+    new("Dev\r\nHours",  "N2",       b => b.Items.Sum(b => b.DevHours)                                 ),
+    new("Dev\r\nRatio",  "N2",       b => b.Items.Sum(b => b.DevHours) / b.Items.Sum(b => b.Time.Hours)),
+    new("$",             "N0",       b => b.Items.Sum(b => b.Amount)                                   ),
+    new("$ per\r\nhour", "N2",       b => b.Items.Sum(b => b.Amount) / b.Items.Sum(b => b.Time.Hours)  ),
+  ];
 
-  IllusionSet? Data;
-  IgnoreToken IgnoreDisplayBlocks;
+  static List<Block> DisplayedBlocks;
+  static IllusionSet? Data;
+  DateTime DataMinTime = new(2000, 1, 1);
+  DateTime DataMaxTime = new(2099, 1, 1);
 
   [STAThread]
   static void Main()
   {
     ApplicationConfiguration.Initialize();
     Application.Run(new IllusionForm());
+  }
+
+  static IllusionForm()
+  {
+    Data = null;
+    DisplayedBlocks = new List<Block>();
   }
 
   public IllusionForm()
@@ -51,10 +59,17 @@ public partial class IllusionForm : Form
     // cb_Grouping
     cb_Grouping.DataSource = Groupers;
     cb_Grouping.SelectedItem = Groupers.First(g => g.Name == "Feature");
+    cb_Grouping.SelectedIndexChanged += (_, _) => FilterAndDisplayBlocks(new ChangeFlags(Grouping: true));
 
     // cb_Time
     cb_Time.DataSource = TimeFilter.Standard;
     cb_Time.SelectedItem = null;
+
+    // dtp_Start
+    dtp_Start.ValueChanged += (_, _) => FilterAndDisplayBlocks(new ChangeFlags(Filter: true));
+
+    // dtp_Stop
+    dtp_Stop.ValueChanged += (_, _) => FilterAndDisplayBlocks(new ChangeFlags(Filter: true));
 
     // iclb
     var allICLB = new List<IllusionCheckedListBox> { iclb_Companies, iclb_Projects, iclb_Features, iclb_Activities, iclb_People };
@@ -63,10 +78,12 @@ public partial class IllusionForm : Form
       allICLB[i].Forward = allICLB
         .Skip(i + 1)
         .ToList();
-    }
 
-    Data = null;
-    IgnoreDisplayBlocks = new IgnoreToken();
+      allICLB[i].CheckChanged += (updateBlocks, updateDisplay) =>
+      {
+        FilterAndDisplayBlocks(new ChangeFlags(Filter: true), updateBlocks, updateDisplay);
+      };
+    }
 
     if (btn_Reload_CanClick())
     {
@@ -74,15 +91,29 @@ public partial class IllusionForm : Form
     }
   }
 
-  void DisplayBlocks()
+  void FilterAndDisplayBlocks(ChangeFlags changes, bool doFilter = true, bool doDisplay = true)
+  {
+    if (doFilter)
+    {
+      FilterBlocks(changes);
+    }
+    if (doDisplay)
+    {
+      DisplayBlocks(changes);
+    }
+  }
+
+  void FilterBlocks(ChangeFlags changes)
   {
     static List<Block> DisplayAndFilterBlocks(
       List<Block> blocks,
-      Func<Block, IEnumerable<string>> getCategories,
+      Func<Block, string[]> getCategories,
       IllusionCheckedListBox iclb)
     {
       var items = new HashSet<string>();
       var ret = new List<Block>();
+
+      var checkedItems = iclb.GetCheckedItems();
 
       foreach (var block in blocks)
       {
@@ -90,7 +121,7 @@ public partial class IllusionForm : Form
         var contains = false;
         foreach (var category in categories)
         {
-          contains = contains || iclb.AllCheckedItems.Contains(category);
+          contains |= checkedItems.Contains(category);
           items.Add(category);
         }
         if (contains)
@@ -107,9 +138,35 @@ public partial class IllusionForm : Form
       return ret;
     }
 
+    if (Data is null)
+    {
+      return;
+    }
+
+    if (changes.Data || changes.Filter)
+    {
+      var startDate = dtp_Start.Value;
+      var stopDate = dtp_Stop.Value;
+
+      var blocks = Data.Blocks
+        .Where(b => b.Time.Date >= startDate && b.Time.Date <= stopDate)
+        .ToList();
+
+      blocks = DisplayAndFilterBlocks(blocks, b => [b.Scope.Company],  iclb_Companies );
+      blocks = DisplayAndFilterBlocks(blocks, b => [b.Scope.Project],  iclb_Projects  );
+      blocks = DisplayAndFilterBlocks(blocks, b => [b.Scope.Feature],  iclb_Features  );
+      blocks = DisplayAndFilterBlocks(blocks, b => [b.Scope.Activity], iclb_Activities);
+      blocks = DisplayAndFilterBlocks(blocks, b => b.Scope.People,     iclb_People    );
+
+      DisplayedBlocks = blocks;
+    }
+  }
+
+  void DisplayBlocks(ChangeFlags changes)
+  {
     static bool GetIsCurrency<T>(Stat<T> stat)
     {
-      return stat.Name.Contains("$");
+      return stat.Name.Contains('$');
     }
 
     static DataGridViewTextBoxColumn MakeGroupColumn()
@@ -142,11 +199,17 @@ public partial class IllusionForm : Form
       };
     }
 
-    static void DisplayStats(string name, DataGridView dgv, bool showIncome, List<Group<Block>> groups, List<Stat<Group<Block>>> stats)
+    static void DisplayStats(string name, DataGridView dgv, bool isNewData, bool showIncome, List<Group<Block>> groups, List<Stat<Group<Block>>> stats)
     {
+      var chosenStats = stats
+        .Where(stat => showIncome || !GetIsCurrency(stat))
+        .ToArray();
+
+      var boldFont = new Font(dgv.DefaultCellStyle.Font, FontStyle.Bold);
+
       // save sorting
-      var sortColumnName = dgv.SortedColumn?.Name;
-      var sortOrder = dgv.SortOrder;
+      var sortColumnName = dgv.Columns.Count == 0 ? "Group" : dgv.SortedColumn?.Name;
+      var sortOrder = dgv.Columns.Count == 0 ? SortOrder.Ascending : dgv.SortOrder;
 
       // clear
       dgv.Columns.Clear();
@@ -158,46 +221,63 @@ public partial class IllusionForm : Form
         return;
       }
 
-      // add columns
-      dgv.Columns.Add(MakeGroupColumn());
-      foreach (var stat in stats.Where(stat => showIncome || !GetIsCurrency(stat)))
+      try
       {
-        dgv.Columns.Add(MakeStatColumn(stat));
-      }
+        dgv.SuspendLayout();
 
-      // add rows
-      foreach (var group in groups)
-      {
-        var row = dgv.Rows[dgv.Rows.Add()];
-        row.Cells["Group"].Value = group.Name;
-        foreach (var stat in stats.Where(stat => showIncome || !GetIsCurrency(stat)))
+        // add columns
+        dgv.Columns.Add(MakeGroupColumn());
+        dgv.Columns.AddRange(chosenStats.Select(MakeStatColumn).ToArray());
+
+        // add rows
+        var rowBuffer = new object?[1 + chosenStats.Length];
+        foreach (var group in groups)
         {
-          var value = stat.Compute(group);
-          if (!double.TryParse(value?.ToString() ?? string.Empty, out var doubleValue) || doubleValue != 0d)
+          rowBuffer[0] = group.Name;
+          for (var i = 0; i < chosenStats.Length; i++)
           {
-            row.Cells[stat.Name].Value = stat.Compute(group);
+            var stat = chosenStats[i];
+            var value = stat.Compute(group);
+
+            if (!double.TryParse(value?.ToString() ?? string.Empty, out var doubleValue) || doubleValue != 0d)
+            {
+              rowBuffer[i + 1] = value;
+            }
+            else
+            {
+              rowBuffer[i + 1] = null;
+            }
           }
+
+          var newRow = new DataGridViewRow();
+          newRow.CreateCells(dgv, rowBuffer);
+          if (group.Name == "Total")
+          {
+            newRow.DefaultCellStyle.Font = boldFont;
+          }
+          dgv.Rows.Add(newRow);
         }
 
-        if (group.Name == "Total")
+        // size
+        dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders;
+        dgv.AutoResizeColumns();
+        foreach (var dgvc in dgv.Columns.Cast<DataGridViewColumn>())
+          dgvc.Width += 12;
+
+        // sort
+        if (sortColumnName != null && dgv.Columns.Contains(sortColumnName) && sortOrder != SortOrder.None)
         {
-          row.DefaultCellStyle.Font = new Font(dgv.DefaultCellStyle.Font, FontStyle.Bold);
+          var dir =
+            sortOrder == SortOrder.Ascending ? ListSortDirection.Ascending :
+            sortOrder == SortOrder.Descending ? ListSortDirection.Descending :
+            throw new NotImplementedException();
+
+          dgv.Sort(dgv.Columns[sortColumnName], dir);
         }
       }
-
-      // size
-      dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCellsExceptHeaders;
-      dgv.AutoResizeColumns();
-
-      // sort
-      if (sortColumnName != null && dgv.Columns.Contains(sortColumnName) && sortOrder != SortOrder.None)
+      finally
       {
-        var dir = 
-          sortOrder == SortOrder.Ascending ? ListSortDirection.Ascending :
-          sortOrder == SortOrder.Descending ? ListSortDirection.Descending :
-          throw new NotImplementedException();
-
-        dgv.Sort(dgv.Columns[sortColumnName], dir);
+        dgv.ResumeLayout();
       }
     }
 
@@ -236,78 +316,76 @@ public partial class IllusionForm : Form
       return bmp;
     }
 
-    static string[] ProccessInitials(string[] initials, List<Person> people)
+    if (Data is null)
     {
-      return initials
-        .Select(i =>
-        {
-          var persons = people
-            .Where(p => p.Initials == i)
-            .ToList();
+      if (tc.TabPages.Contains(tp_Errors))
+      {
+        tc.TabPages.Remove(tp_Errors);
+      }
 
-          return persons.Count == 0 ? i :
-                 persons.Count == 1 ? persons.Single().ToString() :
-                 $@"{i} (?)";
-        })
-        .ToArray();
-    }
-
-    if (Data == null || IgnoreDisplayBlocks.Ignore)
-    {
       return;
     }
 
-    // list boxes
-    var blocks = Data.Blocks
-      .Where(b => b.Time.Date >= dtp_Start.Value && b.Time.Date <= dtp_Stop.Value)
-      .ToList();
-    blocks = DisplayAndFilterBlocks(blocks, b => new[] { b.Scope.Company }, iclb_Companies);
-    blocks = DisplayAndFilterBlocks(blocks, b => new[] { b.Scope.Project }, iclb_Projects);
-    blocks = DisplayAndFilterBlocks(blocks, b => new[] { b.Scope.Feature }, iclb_Features);
-    blocks = DisplayAndFilterBlocks(blocks, b => new[] { b.Scope.Activity }, iclb_Activities);
-    blocks = DisplayAndFilterBlocks(blocks, b => ProccessInitials(b.Scope.People, Data.People), iclb_People);
+    // stats
+    if (changes.Data || changes.Filter || changes.CollapseParenthesis || changes.Grouping || changes.ShowIncome)
+    {
+      var showIncome        = cb_Income.Checked;
+      var ignoreParenthesis = cb_CollapseParenthesis.Checked;
 
-    // data grids
-    var grouper = (Grouper<Block>)cb_Grouping.SelectedItem;
-    var ignoreParenthesis = cb_CollapseParenthesis.Checked;
-    var groups = grouper.Group(blocks, ignoreParenthesis);
-    DisplayStats("Stats", dgv_Stats, cb_Income.Checked, groups, Stats);
+      var grouper = (Grouper<Block>)cb_Grouping.SelectedItem!;
+      var groups = grouper.Group(DisplayedBlocks, ignoreParenthesis);
+
+      DisplayStats(
+        name:       "Stats",
+        dgv:        dgv_Stats,
+        isNewData:  changes.Data,
+        showIncome: showIncome,
+        groups:     groups, 
+        stats:      Stats);
+    }
 
     // visualization
-    if (blocks.Any())
+    if (changes.Data || changes.Filter)
     {
-      var bmp = MakeVisualizationBitmap(blocks, dtp_Start.Value, dtp_Stop.Value, block =>
+      if (DisplayedBlocks.Any())
       {
-        return
-          iclb_Companies.GetHighlight(new[] { block.Scope.Company }) ??
-          iclb_Projects.GetHighlight(new[] { block.Scope.Project }) ??
-          iclb_Features.GetHighlight(new[] { block.Scope.Feature }) ??
-          iclb_Activities.GetHighlight(new[] { block.Scope.Activity }) ??
-          iclb_People.GetHighlight(block.Scope.People) ??
-          (Brushes.White);
-      });
-      pnl_Visualization.VerticalScroll.Visible = true;
-      pnl_Visualization.VerticalScroll.Value = 0;
-      var zoomed = new Bitmap(bmp, new Size(bmp.Width * VisualizationScaleFactor, bmp.Height * VisualizationScaleFactor));
-      pb_Visualization.Size = zoomed.Size;
-      pb_Visualization.Location = new Point((tpVisualization.Width - pb_Visualization.Width) / 2, 3);
-      pb_Visualization.Image = zoomed;
-    }
-    else
-    {
-      pb_Visualization.Image = null;
+        var bmp = MakeVisualizationBitmap(DisplayedBlocks, dtp_Start.Value, dtp_Stop.Value, block =>
+        {
+          return
+            iclb_Companies.GetHighlight([block.Scope.Company]) ??
+            iclb_Projects.GetHighlight([block.Scope.Project]) ??
+            iclb_Features.GetHighlight([block.Scope.Feature]) ??
+            iclb_Activities.GetHighlight([block.Scope.Activity]) ??
+            iclb_People.GetHighlight(block.Scope.People) ??
+            Brushes.White;
+        });
+        pnl_Visualization.VerticalScroll.Visible = true;
+        pnl_Visualization.VerticalScroll.Value = 0;
+        var zoomed = new Bitmap(bmp, new Size(bmp.Width * VisualizationScaleFactor, bmp.Height * VisualizationScaleFactor));
+        pb_Visualization.Size = zoomed.Size;
+        pb_Visualization.Location = new Point((tpVisualization.Width - pb_Visualization.Width) / 2, 3);
+        pb_Visualization.Image = zoomed;
+      }
+      else
+      {
+        pb_Visualization.Image = null;
+      }
     }
 
     // errors
-    tb_Errors.Text = string.Join("\r\n\r\n", Data.Errors.ToArray());
-    tpErrors.Text = $@"Errors ({Data.Errors.Count})";
-    if (Data.Errors.Any() && !tc.TabPages.Contains(tpErrors))
+    if (changes.Data)
     {
-      tc.TabPages.Add(tpErrors);
-    }
-    else if (!Data.Errors.Any() && tc.TabPages.Contains(tpErrors))
-    {
-      tc.TabPages.Remove(tpErrors);
+      tb_Errors.Text = string.Join("\r\n\r\n", Data.Errors.ToArray());
+      tp_Errors.Text = $@"Errors ({Data.Errors.Count})";
+
+      if (Data.Errors.Any() && !tc.TabPages.Contains(tp_Errors))
+      {
+        tc.TabPages.Add(tp_Errors);
+      }
+      else if (!Data.Errors.Any() && tc.TabPages.Contains(tp_Errors))
+      {
+        tc.TabPages.Remove(tp_Errors);
+      }
     }
   }
 
@@ -315,19 +393,20 @@ public partial class IllusionForm : Form
   {
     var files = paths
       .Select(path => new FileInfo(path))
-      .Where(file => file.Extension.ToUpperInvariant() == ".XLSX")
+      .Where(file => file.Extension.Equals(".xlsx", StringComparison.InvariantCultureIgnoreCase))
       .ToArray();
     if (!files.All(file => file.Exists))
     {
       return;
     }
 
-
     var sets = files
       .Select(file => Loader.GetExcelSheets(file.FullName, null))
       .Select(Parser.Parse)
       .ToList();
-    Data = IllusionSet.Merge(sets);
+    var data = IllusionSet.Merge(sets);
+    var dataMinTime = data.Blocks.First().Time.Date;
+    var dataMaxTime = data.Blocks.Last().Time.Date;
 
     if (Settings.Default.LogPath == null)
     {
@@ -337,13 +416,14 @@ public partial class IllusionForm : Form
     Settings.Default.LogPath.AddRange(files.Select(file => file.FullName).ToArray());
     Settings.Default.Save();
 
-    IgnoreDisplayBlocks.Do(() =>
-    {
-      dtp_Start.Value = preserveDateFilter ? dtp_Start.Value : Data!.Blocks.First().Time.Date;
-      dtp_Stop.Value = preserveDateFilter ? dtp_Stop.Value : Data!.Blocks.Last().Time.Date;
-    });
-
-    DisplayBlocks();
+    Data = null; // prevent events
+    dtp_Start.Value = preserveDateFilter ? dtp_Start.Value : dataMinTime;
+    dtp_Stop.Value = preserveDateFilter ? dtp_Stop.Value : dataMaxTime;
+    
+    Data = data;
+    DataMinTime = dataMinTime;
+    DataMaxTime = dataMaxTime;
+    FilterAndDisplayBlocks(new ChangeFlags(Data: true));
   }
 
   void btn_Load_Click(object sender, EventArgs e)
@@ -390,23 +470,20 @@ public partial class IllusionForm : Form
     LoadBlocks(paths, sender == btn_Reload);
   }
 
-  void cb_Grouping_SelectedIndexChanged(object sender, EventArgs e) => DisplayBlocks();
+  void cb_CollapseParenthesis_CheckedChanged(object sender, EventArgs e) => FilterAndDisplayBlocks(new ChangeFlags(CollapseParenthesis: true));
 
-  void cb_CollapseParenthesis_CheckedChanged(object sender, EventArgs e) => DisplayBlocks();
-
-  void cb_Income_CheckedChanged(object sender, EventArgs e) => DisplayBlocks();
+  void cb_Income_CheckedChanged(object sender, EventArgs e) => FilterAndDisplayBlocks(new ChangeFlags(ShowIncome: true));
 
   void cb_Time_SelectionChangeCommitted(object sender, EventArgs e)
   {
-    var timeFilter = (TimeFilter)cb_Time.SelectedItem;
-    var range = timeFilter.GetRange();
+    var timeFilter = (TimeFilter)cb_Time.SelectedItem!;
+    var range = timeFilter.GetRange(DataMinTime, DataMaxTime);
 
     cb_Time.SelectedItem = null;
     dtp_Start.Value = range.Start;
     dtp_Stop.Value = range.Stop;
 
-    iclb_Companies.SelectAll(true);
-    iclb_Companies.SelectAllForward(DisplayBlocks);
+    iclb_Companies.SelectAllForward();
   }
 
   void dgv_SortCompare(object sender, DataGridViewSortCompareEventArgs e)
@@ -417,20 +494,6 @@ public partial class IllusionForm : Form
       e.Handled = true;
     }
   }
-
-  void dtp_Start_ValueChanged(object sender, EventArgs e) => DisplayBlocks();
-
-  void dtp_Stop_ValueChanged(object sender, EventArgs e) => DisplayBlocks();
-
-  void iclb_Projects_ItemCheckChanged() => DisplayBlocks();
-
-  void iclb_Features_ItemCheckChanged() => DisplayBlocks();
-
-  void iclb_Activities_ItemCheckChanged() => DisplayBlocks();
-
-  void iclb_Companies_ItemCheckChanged() => DisplayBlocks();
-
-  void iclb_People_ItemCheckChanged() => DisplayBlocks();
 
   void pb_Visualization_MouseLeave(object sender, EventArgs e)
   {

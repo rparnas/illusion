@@ -2,14 +2,14 @@
 
 internal class Person
 {
-  public readonly List<string> Companies;
+  public readonly string Company;
   public readonly string FirstName;
   public readonly string Initials;
   public readonly string LastName;
 
-  public Person(string initials, string firstName, string lastName, List<string> companies)
+  public Person(string company, string initials, string firstName, string lastName)
   {
-    Companies = companies;
+    Company = company;
     FirstName = firstName;
     Initials = initials;
     LastName = lastName;
