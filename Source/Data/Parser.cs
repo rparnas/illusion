@@ -1,7 +1,6 @@
 ﻿using Illusion.Utilities;
 using System.Data;
 using System.Globalization;
-using System.Text;
 
 namespace Illusion.Data
 {
@@ -12,6 +11,7 @@ namespace Illusion.Data
       var blocks = ParseBlocks(tables["Ledger"]);
       var people = ParsePeople(tables["People"]);
       var income = ParseIncomes(tables["Income"]);
+      var errors = new List<string>();
 
       // check for duplicate initials
       var duplicates = people
@@ -20,8 +20,7 @@ namespace Illusion.Data
         .ToList();
       if (duplicates.Any())
       {
-        var errorMessage = $@"Duplicate initials defined in 'People' table: {string.Join(", ", duplicates.Select(group => group.Key).ToArray())}";
-        throw new ParsingException(errorMessage);
+        errors.Add("Duplicate initials defined in 'People' table:\r\n" + string.Join("\r\n", duplicates.Select(group => $@"  * {group.Key}").ToArray()));
       }
 
       // check for blocks referencing unknown initials
@@ -50,12 +49,21 @@ namespace Illusion.Data
       }
       if (missingInitialsByCompany.Any())
       {
-        var dict = missingInitialsByCompany;
-        var newline = "\r\n";
-        var errorMessage = 
-          $@"The following initials are referenced in 'Blocks' but have no people defined in 'People':{newline}" +
-          $@"{string.Join(newline, dict.Select(x => $@" * {x.Key}: {string.Join(", ", x.Value.OrderBy(i => i).ToArray())}").ToArray())}";
-        throw new ParsingException(errorMessage);
+        var error = new List<string>
+        {
+          $@"Some initials are referenced by the 'Ledger' but have no initials defined in 'People'. By 'Company', these are:",
+        };
+
+        foreach (var company in missingInitialsByCompany.OrderBy(x => x.Key))
+        {
+          error.Add($@"  * {company.Key}");
+          foreach (var initials in company.Value.OrderBy(x => x))
+          {
+            error.Add($@"    - {initials}");
+          }
+        }
+
+        errors.Add(string.Join("\r\n", error));
       }
 
       // output others so they can be manually reviewed for typos
@@ -72,14 +80,17 @@ namespace Illusion.Data
         .ToList();
       if (overlong.Any())
       {
-        var sb = new StringBuilder();
-        sb.AppendLine();
+        var errorLines = new List<string>
+        {
+          $@"These 'Leger' entries are overlong (>8 hrs). Add the text '[LONG]' to their 'Raw' description if this is legitimate:",
+        };
+
         foreach (var o in overlong)
         {
-          sb.AppendLine($@"  * {o.Time} | {o.Raw}");
+          errorLines.Add($@"  * {o.Time} | {o.Raw}");
         }
-        var message = $@"There are some overlong blocks (>8 hrs). Add the text '[LONG]' to their 'Raw' description to ignore:{sb}";
-        throw new ParsingException(message);
+
+        errors.Add(string.Join("\r\n", errorLines.ToArray()));
       }
 
       // check for overlapping blocks
@@ -94,14 +105,17 @@ namespace Illusion.Data
       }
       if (overlaps.Any())
       {
-        var sb = new StringBuilder();
-        sb.AppendLine();
+        var errorLines = new List<string>
+        {
+          $@"There are overlapping blocks",
+        };
+
         foreach (var o in overlaps)
         {
-          sb.AppendLine($@"  * {o.Time} | {o.Raw}");
+          errorLines.Add($@"  * {o.Time} | {o.Raw}");
         }
-        var message = $@"There are overlapping blocks:{sb}";
-        throw new ParsingException(message);
+
+        errors.Add(string.Join("\r\n", errorLines.ToArray()));
       }
 
       // distribute income
@@ -156,7 +170,7 @@ namespace Illusion.Data
         }
       }
 
-      return new IllusionSet(blocks, income, people);
+      return new IllusionSet(blocks, income, people, errors);
     }
 
     #region Blocks
