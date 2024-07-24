@@ -14,6 +14,7 @@ internal class Scope
          "Marketing",
          "Metrics",
          "Performance",
+         "PTO",
          "Recruitment",
          "Training",
        }
@@ -28,13 +29,7 @@ internal class Scope
       }
     },
     {
-      "Misc", new HashSet<string>
-      {
-        "Chitchat",
-        "Food",
-        "Other",
-        "PTO"
-      }
+      "Misc", new HashSet<string> { }
     },
   };
 
