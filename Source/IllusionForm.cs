@@ -352,11 +352,11 @@ public partial class IllusionForm : Form
         var bmp = MakeVisualizationBitmap(DisplayedBlocks, dtp_Start.Value, dtp_Stop.Value, block =>
         {
           return
-            iclb_Companies.GetHighlight([block.Scope.Company]) ??
-            iclb_Projects.GetHighlight([block.Scope.Project]) ??
-            iclb_Features.GetHighlight([block.Scope.Feature]) ??
-            iclb_Activities.GetHighlight([block.Scope.Activity]) ??
             iclb_People.GetHighlight(block.Scope.People) ??
+            iclb_Activities.GetHighlight([block.Scope.Activity]) ??
+            iclb_Features.GetHighlight([block.Scope.Feature]) ??
+            iclb_Projects.GetHighlight([block.Scope.Project]) ??
+            iclb_Companies.GetHighlight([block.Scope.Company]) ??
             Brushes.White;
         });
         pnl_Visualization.VerticalScroll.Visible = true;
