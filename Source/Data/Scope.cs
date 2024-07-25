@@ -28,9 +28,6 @@ internal class Scope
         "Workshops",
       }
     },
-    {
-      "Misc", new HashSet<string> { }
-    },
   };
 
   public static Dictionary<string, HashSet<string>> NonFeatures = new()
