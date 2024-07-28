@@ -60,6 +60,7 @@
       tp_Errors = new TabPage();
       tc = new TabControl();
       cb_Income = new CheckBox();
+      cb_OtherDevs = new CheckBox();
       tb_Errors = new TextBox();
       tpVisualization.SuspendLayout();
       pnl_Visualization.SuspendLayout();
@@ -405,7 +406,7 @@
       // 
       cb_Income.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
       cb_Income.AutoSize = true;
-      cb_Income.Location = new Point(1591, 1240);
+      cb_Income.Location = new Point(1770, 1240);
       cb_Income.Margin = new Padding(6, 8, 6, 8);
       cb_Income.Name = "cb_Income";
       cb_Income.Size = new Size(125, 36);
@@ -413,6 +414,19 @@
       cb_Income.Text = "Income";
       cb_Income.UseVisualStyleBackColor = true;
       cb_Income.CheckedChanged += cb_Income_CheckedChanged;
+      // 
+      // cb_OtherDevs
+      // 
+      cb_OtherDevs.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+      cb_OtherDevs.AutoSize = true;
+      cb_OtherDevs.Location = new Point(1591, 1240);
+      cb_OtherDevs.Margin = new Padding(6, 8, 6, 8);
+      cb_OtherDevs.Name = "cb_OtherDevs";
+      cb_OtherDevs.Size = new Size(125, 36);
+      cb_OtherDevs.TabIndex = 23;
+      cb_OtherDevs.Text = "Other Devs";
+      cb_OtherDevs.UseVisualStyleBackColor = true;
+      cb_OtherDevs.CheckedChanged += cb_OtherDevs_CheckedChanged;
       // 
       // tb_Errors
       // 
@@ -430,6 +444,7 @@
       AutoScaleMode = AutoScaleMode.Font;
       ClientSize = new Size(2499, 1292);
       Controls.Add(cb_Income);
+      Controls.Add(cb_OtherDevs);
       Controls.Add(cb_Time);
       Controls.Add(btn_Reload);
       Controls.Add(cb_CollapseParenthesis);
@@ -500,6 +515,7 @@
     private DataGridView dgv_Stats;
     private TabControl tc;
     private CheckBox cb_Income;
+    private CheckBox cb_OtherDevs;
     private TextBox tb_Errors;
   }
 }

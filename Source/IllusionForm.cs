@@ -22,13 +22,13 @@ public partial class IllusionForm : Form
 
   static readonly List<Stat<Group<Block>>> Stats =
   [
-    new("Start",         "MM/dd/yy", b => b.Items.Min(b => b.Time.Date)                                ),
-    new("Stop",          "MM/dd/yy", b => b.Items.Max(b => b.Time.Date)                                ),
-    new("Hours",         "N2",       b => b.Items.Sum(b => b.Time.Hours)                               ),
-    new("Dev\r\nHours",  "N2",       b => b.Items.Sum(b => b.DevHours)                                 ),
-    new("Dev\r\nRatio",  "N2",       b => b.Items.Sum(b => b.DevHours) / b.Items.Sum(b => b.Time.Hours)),
-    new("$",             "N0",       b => b.Items.Sum(b => b.Amount)                                   ),
-    new("$ per\r\nhour", "N2",       b => b.Items.Sum(b => b.Amount) / b.Items.Sum(b => b.Time.Hours)  ),
+    new("Start",               "MM/dd/yy", b => b.Items.Min(b => b.Time.Date)                                ),
+    new("Stop",                "MM/dd/yy", b => b.Items.Max(b => b.Time.Date)                                ),
+    new("Hours",               "N2",       b => b.Items.Sum(b => b.Time.Hours)                               ),
+    new("Other Dev\r\nHours",  "N2",       b => b.Items.Sum(b => b.DevHours)                                 ),
+    new("Other Dev\r\nRatio",  "N2",       b => b.Items.Sum(b => b.DevHours) / b.Items.Sum(b => b.Time.Hours)),
+    new("$",                   "N0",       b => b.Items.Sum(b => b.Amount)                                   ),
+    new("$ per\r\nhour",       "N2",       b => b.Items.Sum(b => b.Amount) / b.Items.Sum(b => b.Time.Hours)  ),
   ];
 
   static List<Block> DisplayedBlocks;
@@ -164,6 +164,11 @@ public partial class IllusionForm : Form
 
   void DisplayBlocks(ChangeFlags changes)
   {
+    static bool GetIsOtherDevs<T>(Stat<T> stat)
+    {
+      return stat.Name.Contains("Other") && stat.Name.Contains("Dev");
+    }
+
     static bool GetIsCurrency<T>(Stat<T> stat)
     {
       return stat.Name.Contains('$');
@@ -199,9 +204,10 @@ public partial class IllusionForm : Form
       };
     }
 
-    static void DisplayStats(string name, DataGridView dgv, bool isNewData, bool showIncome, List<Group<Block>> groups, List<Stat<Group<Block>>> stats)
+    static void DisplayStats(string name, DataGridView dgv, bool isNewData, bool showOtherDevs, bool showIncome, List<Group<Block>> groups, List<Stat<Group<Block>>> stats)
     {
       var chosenStats = stats
+        .Where(stat => showOtherDevs || !GetIsOtherDevs(stat))
         .Where(stat => showIncome || !GetIsCurrency(stat))
         .ToArray();
 
@@ -327,8 +333,9 @@ public partial class IllusionForm : Form
     }
 
     // stats
-    if (changes.Data || changes.Filter || changes.CollapseParenthesis || changes.Grouping || changes.ShowIncome)
+    if (changes.Data || changes.Filter || changes.CollapseParenthesis || changes.Grouping || changes.ShowOtherDevs || changes.ShowIncome)
     {
+      var showOtherDevs     = cb_OtherDevs.Checked;
       var showIncome        = cb_Income.Checked;
       var ignoreParenthesis = cb_CollapseParenthesis.Checked;
 
@@ -336,12 +343,13 @@ public partial class IllusionForm : Form
       var groups = grouper.Group(DisplayedBlocks, ignoreParenthesis);
 
       DisplayStats(
-        name:       "Stats",
-        dgv:        dgv_Stats,
-        isNewData:  changes.Data,
-        showIncome: showIncome,
-        groups:     groups, 
-        stats:      Stats);
+        name:          "Stats",
+        dgv:           dgv_Stats,
+        isNewData:     changes.Data,
+        showOtherDevs: showOtherDevs,
+        showIncome:    showIncome,
+        groups:        groups, 
+        stats:         Stats);
     }
 
     // visualization
@@ -471,6 +479,8 @@ public partial class IllusionForm : Form
   }
 
   void cb_CollapseParenthesis_CheckedChanged(object sender, EventArgs e) => FilterAndDisplayBlocks(new ChangeFlags(CollapseParenthesis: true));
+
+  void cb_OtherDevs_CheckedChanged(object sender, EventArgs e) => FilterAndDisplayBlocks(new ChangeFlags(ShowOtherDevs: true));
 
   void cb_Income_CheckedChanged(object sender, EventArgs e) => FilterAndDisplayBlocks(new ChangeFlags(ShowIncome: true));
 

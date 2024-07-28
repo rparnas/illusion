@@ -5,4 +5,5 @@ record ChangeFlags(
   bool Filter = false,
   bool CollapseParenthesis = false,
   bool Grouping = false,
+  bool ShowOtherDevs = false,
   bool ShowIncome = false);
