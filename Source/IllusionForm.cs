@@ -18,6 +18,9 @@ public partial class IllusionForm : Form
     new(nameof(Scope.Feature ), b => [b.Scope.Feature ]),
     new(nameof(Scope.Activity), b => [b.Scope.Activity]),
     new(nameof(Scope.People  ), b => b.Scope.People    ),
+    
+    new(nameof(DateTime.Year),  b => [$@"{b.Time.Date:yyyy}"    ]),
+    new(nameof(DateTime.Month), b => [$@"{b.Time.Date:yyyy MMM}"]),
   ];
 
   static readonly List<Stat<Group<Block>>> Stats =
@@ -335,19 +338,17 @@ public partial class IllusionForm : Form
     // stats
     if (changes.Data || changes.Filter || changes.CollapseParenthesis || changes.Grouping || changes.ShowOtherDevs || changes.ShowIncome)
     {
-      var showOtherDevs     = cb_OtherDevs.Checked;
-      var showIncome        = cb_Income.Checked;
-      var ignoreParenthesis = cb_CollapseParenthesis.Checked;
-
       var grouper = (Grouper<Block>)cb_Grouping.SelectedItem!;
-      var groups = grouper.Group(DisplayedBlocks, ignoreParenthesis);
+      var groups = grouper.Group(
+        items:             DisplayedBlocks,
+        ignoreParenthesis: cb_CollapseParenthesis.Checked);
 
       DisplayStats(
         name:          "Stats",
         dgv:           dgv_Stats,
         isNewData:     changes.Data,
-        showOtherDevs: showOtherDevs,
-        showIncome:    showIncome,
+        showOtherDevs: cb_OtherDevs.Checked,
+        showIncome:    cb_Income.Checked,
         groups:        groups, 
         stats:         Stats);
     }
