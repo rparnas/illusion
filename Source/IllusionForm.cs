@@ -239,7 +239,7 @@ public partial class IllusionForm : Form
         dgv.Columns.AddRange(chosenStats.Select(MakeStatColumn).ToArray());
 
         // add rows
-        var rowBuffer = new object?[1 + chosenStats.Length];
+        var rowBuffer = new object[1 + chosenStats.Length];
         foreach (var group in groups)
         {
           rowBuffer[0] = group.Name;
@@ -248,13 +248,14 @@ public partial class IllusionForm : Form
             var stat = chosenStats[i];
             var value = stat.Compute(group);
 
+            // use the value if it is a non-number or a non-zero number
             if (!double.TryParse(value?.ToString() ?? string.Empty, out var doubleValue) || doubleValue != 0d)
             {
-              rowBuffer[i + 1] = value;
+              rowBuffer[i + 1] = value ?? string.Empty;
             }
             else
             {
-              rowBuffer[i + 1] = null;
+              rowBuffer[i + 1] = string.Empty;
             }
           }
 
@@ -281,7 +282,7 @@ public partial class IllusionForm : Form
             sortOrder == SortOrder.Descending ? ListSortDirection.Descending :
             throw new NotImplementedException();
 
-          dgv.Sort(dgv.Columns[sortColumnName], dir);
+          dgv.Sort(dgv.Columns[sortColumnName]!, dir);
         }
       }
       finally
