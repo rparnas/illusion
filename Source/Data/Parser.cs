@@ -359,6 +359,11 @@ static internal class Parser
       throw new ParsingException($@"The following columns are required: {string.Join(" ,", requriredColumns)}");
     }
 
+    if (start > stop)
+    {
+      throw new ParsingException($@"Start must be before Stop");
+    }
+
     return new Income((double)amount.Value, company, start.Value, stop.Value.AddDays(1));
   }
 
