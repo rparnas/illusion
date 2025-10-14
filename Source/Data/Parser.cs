@@ -15,113 +15,7 @@ static internal class Parser
     var blocks = ParseBlocks(ledgerTable);
     var people = ParsePeople(peopleTable);
     var income = ParseIncomes(incomeTable);
-    var errors = new List<string>();
-
-    // check for duplicate initials
-    var duplicateInitials = people
-      .GroupBy(p => $@"{p.Company}: {p.Initials}")
-      .Where(group => group.Count() > 1)
-      .ToList();
-    if (duplicateInitials.Count != 0)
-    {
-      errors.Add("Duplicate initials for the same company in the 'People' table:\r\n" + string.Join("\r\n", duplicateInitials.Select(group => $@"  * {group.Key}").ToArray()));
-    }
-
-    // check for blocks referencing unknown initials
-    var missingInitialsByCompany = new Dictionary<string,HashSet<string>>();
-    foreach (var block in blocks)
-    {
-      foreach (var initials in block.Scope.People)
-      {
-        var company = block.Scope.Company;
-
-        if (initials == Constants.Initials.Self || initials == Constants.Initials.Unspecified)
-        {
-          continue;
-        }
-
-        var person = people.FirstOrDefault(p => p.Company == company && p.Initials == initials);
-        if (person is null)
-        {
-          if (!missingInitialsByCompany.ContainsKey(company))
-          {
-            missingInitialsByCompany[company] = [];
-          }
-          missingInitialsByCompany[company].Add(initials);
-        }
-      }
-    }
-    if (missingInitialsByCompany.Count != 0)
-    {
-      var error = new List<string>
-      {
-        $@"Some initials are referenced by the 'Ledger' but have no initials defined in 'People'. By 'Company', these are:",
-      };
-
-      foreach (var company in missingInitialsByCompany.OrderBy(x => x.Key))
-      {
-        error.Add($@"  * {company.Key}");
-        foreach (var initials in company.Value.OrderBy(x => x))
-        {
-          error.Add($@"    - {initials}");
-        }
-      }
-
-      errors.Add(string.Join("\r\n", error));
-    }
-
-    // output others so they can be manually reviewed for typos
-    var others = blocks
-      .SelectMany(b => b.Others)
-      .Distinct()
-      .OrderBy(name => name)
-      .ToList();
-    var othersStr = string.Join("\r\n", others.ToArray());
-
-    // check for overlong blocks
-    var overlong = blocks
-      .Where(b => b.Time.Hours > 8 && b.Time.Start.HasValue && b.Time.Stop.HasValue && !b.Raw.Contains("[LONG]"))
-      .ToList();
-    if (overlong.Any())
-    {
-      var errorLines = new List<string>
-      {
-        $@"These 'Leger' entries are overlong (>8 hrs). Add the text '[LONG]' to their 'Raw' description if this is legitimate:",
-      };
-
-      foreach (var o in overlong)
-      {
-        errorLines.Add($@"  * {o.Time} | {o.Raw}");
-      }
-
-      errors.Add(string.Join("\r\n", errorLines.ToArray()));
-    }
-
-    // check for overlapping blocks
-    var overlaps = new HashSet<Block>();
-    for (var i = 0; i < blocks.Count - 1; i++)
-    {
-      if (blocks[i].GetOverlaps(blocks[i + 1]))
-      {
-        overlaps.Add(blocks[i]);
-        overlaps.Add(blocks[i + 1]);
-      }
-    }
-    if (overlaps.Any())
-    {
-      var errorLines = new List<string>
-      {
-        $@"There are overlapping blocks",
-      };
-
-      foreach (var o in overlaps)
-      {
-        errorLines.Add($@"  * {o.Time} | {o.Raw}");
-      }
-
-      errors.Add(string.Join("\r\n", errorLines.ToArray()));
-    }
-
+    
     // distribute income
     foreach (var i in income)
     {
@@ -174,9 +68,139 @@ static internal class Parser
       }
     }
 
-    // process initials
+    return new IllusionSet(blocks, income, people);
+  }
+
+  public static List<string> GetErrors(IllusionSet x)
+  {
+    var errors = new List<string>();
+
+    // duplicate initials
+    var duplicateInitials = x.People
+      .GroupBy(p => $@"{p.Company}: {p.Initials}")
+      .Where(group => group.Count() > 1)
+      .ToList();
+    if (duplicateInitials.Count != 0)
+    {
+      var error = new List<string>
+      {
+        "Duplicate initials at the same company for some 'People':"
+      };
+      foreach (var di in duplicateInitials)
+      {
+        error.Add(string.Join("\r\n", duplicateInitials.Select(group => $@"  * {group.Key}").ToArray()));
+      }
+
+      errors.Add(string.Join("\r\n", error.ToArray()));
+    }
+
+    // missing initials
+    var missingInitialsByCompany = new Dictionary<string, HashSet<string>>();
+    foreach (var block in x.Blocks)
+    {
+      foreach (var initials in block.Scope.People)
+      {
+        var company = block.Scope.Company;
+
+        if (initials == Constants.Initials.Self || initials == Constants.Initials.Unspecified)
+        {
+          continue;
+        }
+
+        var person = x.People.FirstOrDefault(p => p.Company == company && p.Initials == initials);
+        if (person is null)
+        {
+          if (!missingInitialsByCompany.ContainsKey(company))
+          {
+            missingInitialsByCompany[company] = [];
+          }
+          missingInitialsByCompany[company].Add(initials);
+        }
+      }
+    }
+    if (missingInitialsByCompany.Count != 0)
+    {
+      var error = new List<string>
+      {
+        $@"Some initials referenced by the 'Ledger' have no initials defined in 'People'. By 'Company', these are:",
+      };
+
+      foreach (var company in missingInitialsByCompany.OrderBy(x => x.Key))
+      {
+        error.Add($@"  * {company.Key}");
+        foreach (var initials in company.Value.OrderBy(x => x))
+        {
+          error.Add($@"    - {initials}");
+        }
+      }
+
+      errors.Add(string.Join("\r\n", error));
+    }
+
+    // overlong blocks
+    var overlong = x.Blocks
+      .Where(b => b.Time.Hours > 8 && b.Time.Start.HasValue && b.Time.Stop.HasValue && !b.Raw.Contains("[LONG]"))
+      .ToList();
+    if (overlong.Any())
+    {
+      var errorLines = new List<string>
+      {
+        $@"These 'Leger' entries are overlong (>8 hrs). Add the text '[LONG]' to their 'Raw' description if this is legitimate:",
+      };
+
+      foreach (var o in overlong)
+      {
+        errorLines.Add($@"  * {o.Time} | {o.Raw}");
+      }
+
+      errors.Add(string.Join("\r\n", errorLines.ToArray()));
+    }
+
+    // overlapping blocks
+    var overlaps = new HashSet<Block>();
+    var nonPTOBlocks = x.Blocks
+      .Where(x => !x.Scope.IsPTO)
+      .ToList();
+    for (var i = 0; i < nonPTOBlocks.Count - 1; i++)
+    {
+      var curr = nonPTOBlocks[i];
+      var next = nonPTOBlocks[i + 1];
+      if (curr.GetOverlaps(next))
+      {
+        overlaps.Add(curr);
+        overlaps.Add(next);
+      }
+    }
+    if (overlaps.Any())
+    {
+      var errorLines = new List<string>
+      {
+        $@"There are overlapping blocks",
+      };
+
+      foreach (var o in overlaps)
+      {
+        errorLines.Add($@"  * [{o.Scope.Company}] {o.Time} | {o.Raw}");
+      }
+
+      errors.Add(string.Join("\r\n", errorLines.ToArray()));
+    }
+
+    // output others so they can be manually reviewed for typos
+    var others = x.Blocks
+      .SelectMany(b => b.Others)
+      .Distinct()
+      .OrderBy(name => name)
+      .ToList();
+    var othersStr = string.Join("\r\n", others.ToArray());
+
+    return errors;
+  }
+
+  public static void InjectNamesForInitials(IllusionSet x)
+  {
     var peopleByCompanyThenInitials = new Dictionary<string, Dictionary<string, List<Person>>>();
-    foreach (var person in people)
+    foreach (var person in x.People)
     {
       var company = person.Company;
       var initials = person.Initials;
@@ -193,7 +217,7 @@ static internal class Parser
 
       peopleByCompanyThenInitials[company][initials].Add(person);
     }
-    foreach (var block in blocks)
+    foreach (var block in x.Blocks)
     {
       var peopleByInitials = peopleByCompanyThenInitials.GetValueOrDefault(block.Scope.Company);
 
@@ -210,8 +234,6 @@ static internal class Parser
         block.Scope.People[i] = newName;
       }
     }
-
-    return new IllusionSet(blocks, income, people, errors);
   }
 
   #region Blocks

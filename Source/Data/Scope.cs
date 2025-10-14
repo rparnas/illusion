@@ -73,6 +73,8 @@ internal class Scope
   public string Activity { get; }
   public string[] People { get; }
 
+  public bool IsPTO => Project == "<Admin>" && Feature == "<PTO>";
+
   public Scope(string company, string project, string feature, string activity, string[] people)
   {
     static string Braketize(string s) => $@"<{s}>";

@@ -45,16 +45,17 @@ internal class Time : IComparable
 
   public override string ToString()
   {
+    static string WithShortTimeOfDay(DateTime x)
+    {
+      return x.ToString(x.Minute == 0 ? "htt" : "h:mmtt")
+        .Replace("AM", "a")
+        .Replace("PM", "p");
+    }
+
     if (Start.HasValue && Stop.HasValue)
     {
-      var startStr = Start.Value.ToString("htt")
-        .Replace("AM", "a")
-        .Replace("PM", "p");
-
-      var stopStr = Stop.Value.ToString("htt")
-        .Replace("AM", "a")
-        .Replace("PM", "p");
-
+      var startStr = WithShortTimeOfDay(Start.Value);
+      var stopStr = WithShortTimeOfDay(Stop.Value);
       return $@"{Date:M/d/yy} {startStr} ~ {stopStr}";
     }
     else

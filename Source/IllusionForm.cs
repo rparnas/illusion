@@ -36,15 +36,9 @@ public partial class IllusionForm : Form
 
   static List<Block> DisplayedBlocks;
   static IllusionSet? Data;
+  static List<string>? Errors;
   DateTime DataMinTime = new(2000, 1, 1);
   DateTime DataMaxTime = new(2099, 1, 1);
-
-  [STAThread]
-  static void Main()
-  {
-    ApplicationConfiguration.Initialize();
-    Application.Run(new IllusionForm());
-  }
 
   static IllusionForm()
   {
@@ -385,14 +379,16 @@ public partial class IllusionForm : Form
     // errors
     if (changes.Data)
     {
-      tb_Errors.Text = string.Join("\r\n\r\n", Data.Errors.ToArray());
-      tp_Errors.Text = $@"Errors ({Data.Errors.Count})";
+      var allErrors = Errors ?? new List<string>();
 
-      if (Data.Errors.Any() && !tc.TabPages.Contains(tp_Errors))
+      tb_Errors.Text = string.Join("\r\n\r\n", allErrors.ToArray());
+      tp_Errors.Text = $@"Errors ({allErrors.Count})";
+
+      if (allErrors.Any() && !tc.TabPages.Contains(tp_Errors))
       {
         tc.TabPages.Add(tp_Errors);
       }
-      else if (!Data.Errors.Any() && tc.TabPages.Contains(tp_Errors))
+      else if (!allErrors.Any() && tc.TabPages.Contains(tp_Errors))
       {
         tc.TabPages.Remove(tp_Errors);
       }
@@ -415,6 +411,8 @@ public partial class IllusionForm : Form
       .Select(Parser.Parse)
       .ToList();
     var data = IllusionSet.Merge(sets);
+    var errors = Parser.GetErrors(data);
+    Parser.InjectNamesForInitials(data);
     var dataMinTime = data.Blocks.First().Time.Date;
     var dataMaxTime = data.Blocks.Last().Time.Date;
 
@@ -431,6 +429,7 @@ public partial class IllusionForm : Form
     dtp_Stop.Value = preserveDateFilter ? dtp_Stop.Value : dataMaxTime;
     
     Data = data;
+    Errors = errors;
     DataMinTime = dataMinTime;
     DataMaxTime = dataMaxTime;
     FilterAndDisplayBlocks(new ChangeFlags(Data: true));
