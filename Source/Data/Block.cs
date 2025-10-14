@@ -33,4 +33,9 @@ internal class Block : IScope
       Time.Start.HasValue && Time.Stop.HasValue &&
       Time.Start < stop && start < Time.Stop;
   }
+
+    public override string ToString()
+    {
+        return $@"[{Scope}] at {Time}: {Raw}";
+    }
 }

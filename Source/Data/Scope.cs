@@ -23,8 +23,9 @@ internal class Scope
       "Enrichment", new HashSet<string>
       {
         "Social",
-        "Talks",
-        "Talk Prep",
+        "Talk (Attend)",
+        "Talk (Prepare)",
+        "Talk (Present)",
         "Workshops",
       }
     },
@@ -35,10 +36,8 @@ internal class Scope
     {
       "Op", new HashSet<string>
       {
-        "Bug",
         "Config",
         "Deployment",
-        "Meeting",
         "Planning",
         "Process",
         "Support",
@@ -52,19 +51,20 @@ internal class Scope
     "Code",
     "Code (Fixes)",
     "Code (Review)",
+
     "Design",
     "Design (Fixes)",
     "Design (Review)",
+
     "Discussion",
     "Other",
-    "Reqs",
     "Research",
     "Study",
+
     "Test (Ad-hoc)",
     "Test (Automated)",
     "Test (Manual)",
     "Test (Execution)",
-    "VOC",
   };
 
   public string Company { get; }
